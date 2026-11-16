@@ -12,7 +12,13 @@ npm run seed      # optional: 3 demo agents with two weeks of runs
 npm run dev       # → http://localhost:4321
 ```
 
-Then open **Add an agent** (`/onboarding`) to connect a real Claude Code project. For production mode, run `npm run build && npm start`.
+Then register your first real agent:
+
+```bash
+npm run register          # Windows PowerShell: npm.cmd run register
+```
+
+It asks a few questions (name, project folder, schedule, links) and sets everything up: the manifest, the project folder, a `CLAUDE.md` for the agent's instructions, and the reporting hooks. Details are in [docs/ONBOARDING.md](docs/ONBOARDING.md). For production mode, run `npm run build && npm start`.
 
 Requirements: Node 20 or newer. Everything is local: SQLite (`data/agent-ops.db`) and no external services.
 
@@ -80,6 +86,7 @@ Before exposing the dashboard beyond localhost, put authentication in front of i
 | `npm run dev` / `npm start` | Run the dashboard on :4321 |
 | `npm test` | Unit tests (manifest validation, ingestion, alert rules, hook, importer, chat, workflow) |
 | `npm run typecheck` | TypeScript check |
+| `npm run register` | Register an agent and set up its folder, instructions, manifest and reporting hooks in one step |
 | `npm run seed` | Demo data (`--reset` to regenerate, `--remove` to delete demo agents) |
 | `npm run send-sample-events [agent-id]` | End-to-end check of the HTTP API against a running dashboard |
 | `npm run hook-config [agent-id]` | Print the Claude Code hooks block |

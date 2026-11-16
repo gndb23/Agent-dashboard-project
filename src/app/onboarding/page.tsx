@@ -66,6 +66,10 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-10">
           <Step n={1} title="Describe the agent in a manifest">
+            <p className="rounded-control border border-accent/40 bg-accent-soft px-3 py-2 text-fg">
+              Quickest: run {code("npm run register")} in this project ({code("npm.cmd run register")} in Windows PowerShell). It asks a few questions and
+              creates the manifest, the project folder, a {code("CLAUDE.md")} for instructions and the reporting hooks in one go. Steps 1 and 2 below are the manual way.
+            </p>
             <p>
               Create {code("agents/<agent-id>.yaml")} in this project. The file name must match the {code("id")}. The dashboard picks it up instantly, no restart needed.
               For Claude Code agents, use the project folder name as the id (or set {code("AGENT_ID")} in step 2).

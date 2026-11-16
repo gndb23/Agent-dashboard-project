@@ -34,6 +34,20 @@ function summaryOf(input: unknown): string | undefined {
   return typeof v === "string" ? v.replace(/\s+/g, " ").slice(0, 200) : undefined;
 }
 
+/** The working folder recorded in a transcript (first line that has one). */
+export function transcriptCwd(text: string): string | undefined {
+  for (const raw of text.split("\n", 200)) {
+    if (!raw.includes('"cwd"')) continue;
+    try {
+      const cwd = JSON.parse(raw).cwd;
+      if (typeof cwd === "string") return cwd;
+    } catch {
+      /* skip */
+    }
+  }
+  return undefined;
+}
+
 /**
  * Converts one Claude Code transcript (JSONL text) into Agent Ops events.
  * Every event has a deterministic event_id, so re-importing is a no-op.

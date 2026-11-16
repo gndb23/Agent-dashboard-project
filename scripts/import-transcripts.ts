@@ -14,7 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { createDb, dbPath } from "../src/lib/db/client";
 import { ingestEvents } from "../src/lib/events/ingest";
-import { transcriptToEvents } from "../src/lib/importer";
+import { transcriptCwd, transcriptToEvents } from "../src/lib/importer";
+import { findAgentFile } from "../integrations/claude-code/hook.mjs";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -56,7 +57,10 @@ const capturedLive = db.$client.prepare(
 for (const file of walk(root)) {
   if (project && !file.includes(project)) continue;
   if (cutoff && fs.statSync(file).mtimeMs < cutoff) continue;
-  const events = transcriptToEvents(fs.readFileSync(file, "utf8"), { fileName: file, agentId });
+  const text = fs.readFileSync(file, "utf8");
+  // Same rule as the live hook: --agent, else .claude/agent-ops.json in the session's folder, else the folder name.
+  const cwd = transcriptCwd(text);
+  const events = transcriptToEvents(text, { fileName: file, agentId: agentId ?? (cwd ? findAgentFile(cwd)?.agent_id : undefined) });
   if (events.length === 0) continue;
   if (capturedLive.get(events[0].run_id)) {
     skippedLive++;
@@ -76,4 +80,4 @@ console.log(`Imported ${files} transcript(s) from ${root}`);
 console.log(`  events: ${accepted} new, ${duplicates} already imported, ${rejected} rejected`);
 if (skippedLive) console.log(`  skipped ${skippedLive} session(s) already captured live by the hook`);
 console.log(`  database: ${dbPath()}`);
-console.log(`Tip: agents are named after the project folder. Create agents/<id>.yaml to register them.`);
+console.log(`Tip: sessions are named after .claude/agent-ops.json (from npm run register) or the project folder.`);

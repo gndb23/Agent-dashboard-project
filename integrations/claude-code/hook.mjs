@@ -8,17 +8,26 @@
  * Guarantees: never blocks or fails the agent. Fire-and-forget, 1s timeout,
  * prints nothing, always exits 0.
  *
+ * Agent id, first match wins:
+ *   1. --agent-id <id> argument          (Windows-safe way to pin it in settings.json)
+ *   2. AGENT_ID environment variable
+ *   3. .claude/agent-ops.json in the session folder or any parent folder
+ *      (written by `npm run register`: { "agent_id": "...", "url": "..." })
+ *   4. the project folder name, slugified
+ *
+ * Dashboard URL: --url <url>, then AGENT_OPS_URL, then agent-ops.json "url",
+ * then http://localhost:4321.
+ *
  * Env:
- *   AGENT_OPS_URL   dashboard base URL (default http://localhost:4321)
- *   AGENT_ID        agent id (default: slug of the project folder name)
  *   AGENT_OPS_PARENT_RUN_ID / AGENT_OPS_PARENT_AGENT_ID
  *                   run (and agent) that launched this session, for the workflow map
  *   AGENT_OPS_DEBUG=1  log errors to stderr
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const BASE = (process.env.AGENT_OPS_URL || "http://localhost:4321").replace(/\/$/, "");
+const DEFAULT_URL = "http://localhost:4321";
 const DEBUG = process.env.AGENT_OPS_DEBUG === "1";
 const MAX_STR = 2000;
 
@@ -89,10 +98,40 @@ export function usageFromTranscript(file) {
   return totals;
 }
 
+/** Finds .claude/agent-ops.json in `dir` or the nearest parent folder (written by `npm run register`). */
+export function findAgentFile(dir) {
+  let cur = dir ? path.resolve(dir) : null;
+  for (let i = 0; cur && i < 40; i++) {
+    const f = path.join(cur, ".claude", "agent-ops.json");
+    try {
+      if (fs.existsSync(f)) {
+        const o = JSON.parse(fs.readFileSync(f, "utf8"));
+        if (o && typeof o.agent_id === "string" && o.agent_id) return { ...o, file: f };
+      }
+    } catch {
+      /* unreadable or invalid file: keep looking upward */
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  return null;
+}
+
+/** --agent-id / --url from the hook command line. */
+export function parseArgs(argv) {
+  const get = (name) => {
+    const i = argv.indexOf(name);
+    return i >= 0 && argv[i + 1] ? argv[i + 1] : undefined;
+  };
+  return { agentId: get("--agent-id"), url: get("--url") };
+}
+
 /** Map a Claude Code hook payload to an Agent Ops event (or null to skip). */
-export function toEvent(h, env = process.env) {
+export function toEvent(h, env = process.env, lookup = findAgentFile) {
   const name = h.hook_event_name;
-  const agent_id = slug(env.AGENT_ID || path.basename(h.cwd || process.cwd()));
+  const file = env.AGENT_ID ? null : lookup(h.cwd || process.cwd());
+  const agent_id = slug(env.AGENT_ID || file?.agent_id || path.basename(h.cwd || process.cwd()));
   const run_id = h.session_id || `cc-${Date.now()}`;
   const base = {
     schema_version: 1,
@@ -151,9 +190,13 @@ async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
   const hook = JSON.parse(raw || "{}");
-  const event = toEvent(hook);
+  const args = parseArgs(process.argv.slice(2));
+  const env = args.agentId ? { ...process.env, AGENT_ID: args.agentId } : process.env;
+  const event = toEvent(hook, env);
   if (!event) return;
-  await fetch(`${BASE}/api/events`, {
+  const fileUrl = env.AGENT_ID ? undefined : findAgentFile(hook.cwd || process.cwd())?.url;
+  const base = (args.url || process.env.AGENT_OPS_URL || fileUrl || DEFAULT_URL).replace(/\/$/, "");
+  await fetch(`${base}/api/events`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(event),
@@ -161,7 +204,8 @@ async function main() {
   });
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+// fileURLToPath (not URL.pathname) so this also matches on Windows ("C:\\..." paths).
+const isMain = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const hardStop = setTimeout(() => process.exit(0), 1500);
   main()

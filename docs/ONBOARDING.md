@@ -2,6 +2,28 @@
 
 The dashboard also has an interactive version of this guide at **/onboarding**, with copy buttons and real file paths.
 
+## Fastest: `npm run register`
+
+```bash
+npm run register          # Windows PowerShell: npm.cmd run register
+```
+
+Answer a few questions; press Enter to accept a default. It then sets up everything:
+
+| What | Where | Notes |
+|---|---|---|
+| Manifest | `agents/<id>.yaml` | Validated before it is written. An existing one is only replaced if you confirm, and a `.bak` copy is kept. |
+| Project folder | the path you give, default `~/agents/<id>` | Created if missing. |
+| Instructions | `<project>/CLAUDE.md` | Claude Code reads it in every session in that folder, including dashboard chats. An existing file is never overwritten. |
+| Agent label | `<project>/.claude/agent-ops.json` | Every session in that folder, or any subfolder, is reported as this agent, whatever the folder is called. |
+| Reporting hooks | `~/.claude/settings.json` (recommended) or the project's `.claude/settings.json` | Merged in, not overwritten; your other settings and hooks are kept, and a `.bak` copy is made first. Skipped if already installed. |
+
+Schedules can be written as `daily 05:30`, `weekdays 08:00`, `every 30m`, `every 2h`, a 5-field cron, or left blank. If the agent runs on this computer and has a schedule, a missed-run alert is added, sized to the schedule (27 hours for a daily job).
+
+Non-interactive use: `npm run register -- --name "Inventory Sync" --dir C:/agents/inventory --schedule "daily 08:00" --timezone Asia/Singapore --yes`. Run `npm run register -- --help`, or read the top of `scripts/register-agent.ts`, for every flag.
+
+The rest of this guide covers doing the same steps by hand.
+
 ## 1. Write a manifest
 
 Create `agents/<agent-id>.yaml`. The file name must equal `id`. The dashboard reloads manifests as soon as the file changes. Files that start with `_` are ignored.
@@ -46,7 +68,7 @@ Invalid manifests don't crash anything. They appear in a banner on the Overview 
 
 1. Run `npm run hook-config` (or `npm run hook-config -- my-agent-id` to pin the id) and paste the output into either
    `<project>/.claude/settings.json` (that project only) or `~/.claude/settings.json` (all projects).
-2. By default the agent id is the project folder name, slugified. `My Project` becomes `my-project`.
+2. The agent id comes from, in order: `--agent-id` in the hook command, the `AGENT_ID` variable, a `.claude/agent-ops.json` file in the session's folder or a parent folder (written by `npm run register`), and finally the project folder name, slugified (`My Project` becomes `my-project`).
 3. Optional: backfill history with `npm run import:transcripts -- --project <folder>`.
 
 What gets captured: session start and end, each prompt, each tool call and result (errors flagged), notifications, and token usage plus estimated cost, read from the transcript at every `Stop`. The hook never blocks the agent: it uses a 1s network timeout, prints nothing and always exits 0. Set `AGENT_OPS_DEBUG=1` to see its errors.
