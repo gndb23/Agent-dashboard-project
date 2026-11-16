@@ -74,7 +74,8 @@ describe("Claude Code hook", () => {
   it("generates a settings block covering every hook", () => {
     const s = claudeHookSettings({ root: "/opt/agent-ops", agentId: "my-agent" });
     expect(Object.keys(s.hooks)).toContain("PreToolUse");
-    expect(JSON.stringify(s)).toContain('node \\"/opt/agent-ops/integrations/claude-code/hook.mjs\\" --agent-id my-agent');
+    const hook = path.join("/opt/agent-ops", "integrations", "claude-code", "hook.mjs");
+    expect((s.hooks.Stop[0] as { hooks: { command: string }[] }).hooks[0].command).toBe(`node "${hook}" --agent-id my-agent`);
   });
 });
 

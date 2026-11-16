@@ -174,7 +174,7 @@ describe("registerAgent (end to end on disk)", () => {
 describe("hook command line", () => {
   it("passes options as arguments so it works on Windows shells", () => {
     expect(hookCommand({ root: "/opt/ops", agentId: "a1", url: "http://localhost:5000" })).toBe(
-      'node "/opt/ops/integrations/claude-code/hook.mjs" --agent-id a1 --url http://localhost:5000',
+      `node "${path.join("/opt/ops", "integrations", "claude-code", "hook.mjs")}" --agent-id a1 --url http://localhost:5000`,
     );
     expect(parseArgs(["--agent-id", "a1", "--url", "http://x"])).toEqual({ agentId: "a1", url: "http://x" });
   });
