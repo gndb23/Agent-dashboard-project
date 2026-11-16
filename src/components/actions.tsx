@@ -29,7 +29,7 @@ export function CreateManifestButton({ agentId, type }: { agentId: string; type?
       <Button size="sm" variant="primary" onClick={create} disabled={state === "busy"}>
         <FilePlus2 size={13} /> {state === "busy" ? "Creating…" : "Create manifest"}
       </Button>
-      {state === "error" && <span className="text-[12px] text-status-failed">{error}</span>}
+      {state === "error" && <span className="text-xs text-status-failed-fg">{error}</span>}
     </span>
   );
 }

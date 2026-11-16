@@ -12,6 +12,11 @@ export function createDb(file: string): DB {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("busy_timeout = 3000");
   sqlite.exec(schema.DDL);
+  for (const m of schema.COLUMN_MIGRATIONS) {
+    const cols = sqlite.prepare(`PRAGMA table_info(${m.table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === m.column)) sqlite.exec(m.ddl);
+  }
+  sqlite.exec("CREATE INDEX IF NOT EXISTS runs_parent_idx ON runs(parent_run_id)");
   return drizzle(sqlite, { schema }) as DB;
 }
 

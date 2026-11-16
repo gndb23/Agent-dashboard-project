@@ -9,6 +9,7 @@ timezone: Asia/Singapore
 tags: [demo, finance, scheduled]
 expected_runtime_minutes: 12
 color: "#6E56CF"
+triggers: [inbox-triage, pr-reviewer]
 alert_rules:
   - type: consecutive_failures
     threshold: 2

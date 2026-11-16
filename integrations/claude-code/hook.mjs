@@ -11,6 +11,8 @@
  * Env:
  *   AGENT_OPS_URL   dashboard base URL (default http://localhost:4321)
  *   AGENT_ID        agent id (default: slug of the project folder name)
+ *   AGENT_OPS_PARENT_RUN_ID / AGENT_OPS_PARENT_AGENT_ID
+ *                   run (and agent) that launched this session, for the workflow map
  *   AGENT_OPS_DEBUG=1  log errors to stderr
  */
 import fs from "node:fs";
@@ -99,6 +101,9 @@ export function toEvent(h, env = process.env) {
     session_id: h.session_id,
     timestamp: new Date().toISOString(),
     source: "claude-code-hook",
+    // Set these when one agent launches another, so the handoff shows on /workflow.
+    ...(env.AGENT_OPS_PARENT_RUN_ID ? { parent_run_id: env.AGENT_OPS_PARENT_RUN_ID } : {}),
+    ...(env.AGENT_OPS_PARENT_AGENT_ID ? { parent_agent_id: slug(env.AGENT_OPS_PARENT_AGENT_ID) } : {}),
   };
   switch (name) {
     case "SessionStart":

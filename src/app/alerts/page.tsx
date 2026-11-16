@@ -42,7 +42,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
             key={t.key}
             href={`/alerts?status=${t.key}`}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-[13px]",
+              "-mb-px border-b-2 px-3 py-2 text-sm",
               status === t.key ? "border-accent font-medium text-fg" : "border-transparent text-fg-muted hover:text-fg",
             )}
           >
@@ -78,7 +78,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                   </TD>
                   <TD>
                     <div className="text-fg">{a.message}</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-fg-subtle">
+                    <div className="mt-0.5 font-mono text-2xs text-fg-subtle">
                       {a.ruleKey}
                       {a.runId && (
                         <> · <Link href={`/runs/${encodeURIComponent(a.runId)}`} className="hover:text-accent">view run</Link></>
@@ -88,7 +88,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                   <TD className="whitespace-nowrap tabular" title={dateTime(a.triggeredAt)}>{timeAgo(a.triggeredAt, now)}</TD>
                   <TD>
                     <Badge variant={a.status === "open" ? "failed" : a.status === "acknowledged" ? "warning" : "success"}>{a.status}</Badge>
-                    {a.resolvedAt && <div className="mt-0.5 text-[11px] text-fg-subtle">{timeAgo(a.resolvedAt, now)}</div>}
+                    {a.resolvedAt && <div className="mt-0.5 text-2xs text-fg-subtle">{timeAgo(a.resolvedAt, now)}</div>}
                   </TD>
                   <TD className="text-right"><AlertActions id={a.id} status={a.status} /></TD>
                 </TR>

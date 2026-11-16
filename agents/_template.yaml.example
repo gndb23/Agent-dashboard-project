@@ -8,6 +8,10 @@ type: claude-code            # claude-code | api-script | other
 # timezone: Asia/Singapore
 tags: []
 # expected_runtime_minutes: 10
+# triggers: [other-agent-id]            # agents this one hands work to (Workflow page)
+# project_dir: /absolute/path/to/project # enables Chat for claude-code agents
+# chat:
+#   permission_mode: default             # default | plan | acceptEdits
 alert_rules:
   - type: consecutive_failures
     threshold: 2

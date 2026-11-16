@@ -10,11 +10,13 @@ export function NavLink({ href, children, exact }: { href: string; children: Rea
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-        active ? "bg-surface-hover font-medium text-fg" : "text-fg-muted hover:bg-surface-hover hover:text-fg",
+        "relative flex h-8 items-center gap-2.5 rounded-control px-2.5 text-sm transition-colors",
+        active ? "bg-accent-soft font-medium text-fg" : "text-fg-muted hover:bg-surface-hover hover:text-fg",
       )}
     >
+      {active && <span className="absolute -left-2 top-1.5 h-5 w-[3px] rounded-r-full bg-accent" aria-hidden />}
       {children}
     </Link>
   );

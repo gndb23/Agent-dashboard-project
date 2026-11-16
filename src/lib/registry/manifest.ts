@@ -53,6 +53,17 @@ export const manifestSchema = z
     tags: z.array(z.string()).default([]),
     expected_runtime_minutes: z.number().positive().optional(),
     alert_rules: z.array(alertRuleSchema).default([]),
+    /** Agents this agent hands work to (drawn as declared links on /workflow). */
+    triggers: z.array(z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "triggers must be agent ids")).default([]),
+    /** Absolute path to the agent's project. Enables "Chat" for claude-code agents. */
+    project_dir: z
+      .string()
+      .refine((p) => p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p), "project_dir must be an absolute path")
+      .optional(),
+    chat: z
+      .object({ permission_mode: z.enum(["default", "acceptEdits", "plan"]).default("default") })
+      .strict()
+      .optional(),
     icon: z.string().optional(),
     color: z
       .string()

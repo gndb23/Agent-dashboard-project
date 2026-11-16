@@ -73,10 +73,10 @@ export function LiveIndicator() {
     return () => clearTimeout(t);
   }, [lastEventAt]);
   return (
-    <span className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-1 text-[12px] text-fg-muted" title={connected ? "Receiving live updates" : "Reconnecting…"}>
+    <span className="inline-flex h-7 items-center gap-2 rounded-full border border-border bg-surface px-2.5 text-xs font-medium text-fg-muted" title={connected ? "Receiving live updates" : "Reconnecting…"}>
       <span
         className={
-          "h-1.5 w-1.5 rounded-full transition-transform " +
+          "h-1.5 w-1.5 rounded-full transition-transform duration-300 " +
           (connected ? "bg-status-success" : "bg-status-idle") +
           (flash ? " scale-150" : "")
         }

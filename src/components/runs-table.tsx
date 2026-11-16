@@ -27,13 +27,13 @@ export function RunsTable({ runs, now }: { runs: RunView[]; now: number }) {
             </TD>
             <TD className="max-w-[340px]">
               <Link href={`/runs/${encodeURIComponent(r.id)}`} className="block truncate text-fg hover:text-accent">
-                {r.title ?? <span className="font-mono text-[12px]">{r.id}</span>}
+                {r.title ?? <span className="font-mono text-xs">{r.id}</span>}
               </Link>
             </TD>
             <TD className="whitespace-nowrap tabular" title={dateTime(r.startedAt)}>{timeAgo(r.startedAt, now)}</TD>
             <TD className="text-right tabular">{duration(r.durationMs ?? (r.status === "running" ? now - r.startedAt : null))}</TD>
             <TD className="text-right tabular">{r.toolCount}</TD>
-            <TD className={"text-right tabular" + (r.errorCount ? " text-status-failed" : "")}>{r.errorCount}</TD>
+            <TD className={"text-right tabular" + (r.errorCount ? " text-status-failed-fg" : "")}>{r.errorCount}</TD>
             <TD className="text-right tabular">{compact(r.tokensIn + r.tokensOut)}</TD>
             <TD className="text-right tabular">{usd(r.costUsd)}</TD>
           </TR>

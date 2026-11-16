@@ -45,6 +45,15 @@ export function loadRegistry(dir: string): Registry {
     byId.set(res.manifest.id, res.manifest);
     agents.push(res.manifest);
   }
+  for (const a of agents) {
+    const bad = a.triggers.filter((t) => t === a.id || !byId.has(t));
+    if (bad.length) {
+      errors.push({
+        file: `${a.id}.yaml`,
+        error: `triggers references ${bad.map((b) => (b === a.id ? `itself ("${b}")` : `unknown agent "${b}"`)).join(", ")} (the agent still loads; the link is ignored)`,
+      });
+    }
+  }
   agents.sort((a, b) => a.name.localeCompare(b.name));
   return { agents, byId, errors, dir };
 }

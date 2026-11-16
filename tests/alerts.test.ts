@@ -10,7 +10,7 @@ const H = 3_600_000;
 const NOW = Date.parse("2026-03-10T12:00:00Z");
 
 function manifest(rules: AgentManifest["alert_rules"]): AgentManifest {
-  return { id: "a1", name: "A1", description: "", owner: "", type: "claude-code", tags: [], alert_rules: rules };
+  return { id: "a1", name: "A1", description: "", owner: "", type: "claude-code", tags: [], triggers: [], alert_rules: rules };
 }
 const run = (id: string, status: RunSummary["status"], hoursAgo: number, costUsd = 0): RunSummary => ({
   id, status, startedAt: NOW - hoursAgo * H, endedAt: status === "running" ? null : NOW - hoursAgo * H + 60_000, costUsd,

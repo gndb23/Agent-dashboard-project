@@ -25,6 +25,8 @@ export const runs = sqliteTable(
     eventCount: integer("event_count").notNull().default(0),
     toolCount: integer("tool_count").notNull().default(0),
     errorCount: integer("error_count").notNull().default(0),
+    parentRunId: text("parent_run_id"),
+    parentAgentId: text("parent_agent_id"),
   },
   (t) => [
     index("runs_agent_started_idx").on(t.agentId, t.startedAt),
@@ -73,7 +75,26 @@ export const alerts = sqliteTable(
   (t) => [index("alerts_status_idx").on(t.status, t.triggeredAt), index("alerts_agent_idx").on(t.agentId, t.ruleKey)],
 );
 
+/** Dashboard ↔ agent chat transcript (one row per message). */
+export const chatMessages = sqliteTable(
+  "chat_messages",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: text("agent_id").notNull(),
+    conversationId: text("conversation_id").notNull(),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    text: text("text").notNull(),
+    tools: text("tools", { mode: "json" }).$type<string[]>(),
+    sessionId: text("session_id"),
+    status: text("status", { enum: ["done", "streaming", "error", "stopped"] }).notNull(),
+    costUsd: real("cost_usd"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("chat_agent_idx").on(t.agentId, t.id)],
+);
+
 export type Run = typeof runs.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type Alert = typeof alerts.$inferSelect;
 
@@ -134,4 +155,24 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 CREATE INDEX IF NOT EXISTS alerts_status_idx ON alerts(status, triggered_at);
 CREATE INDEX IF NOT EXISTS alerts_agent_idx ON alerts(agent_id, rule_key);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  agent_id TEXT NOT NULL,
+  conversation_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  text TEXT NOT NULL,
+  tools TEXT,
+  session_id TEXT,
+  status TEXT NOT NULL,
+  cost_usd REAL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_agent_idx ON chat_messages(agent_id, id);
 `;
+
+/** Additive column migrations, applied once each (checked against PRAGMA table_info). */
+export const COLUMN_MIGRATIONS: { table: string; column: string; ddl: string }[] = [
+  { table: "runs", column: "parent_run_id", ddl: "ALTER TABLE runs ADD COLUMN parent_run_id TEXT" },
+  { table: "runs", column: "parent_agent_id", ddl: "ALTER TABLE runs ADD COLUMN parent_agent_id TEXT" },
+];

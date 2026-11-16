@@ -51,6 +51,10 @@ export const agentEventSchema = z
     event_id: idString.optional(),
     /** When true, metrics are run-to-date totals (max-merged) rather than deltas (summed). */
     metrics_cumulative: z.boolean().optional(),
+    /** Run that triggered this run (agent-to-agent handoff). Drawn as a detected link on /workflow. */
+    parent_run_id: idString.optional(),
+    /** Agent that owns parent_run_id. Optional when the parent run is already known to the dashboard. */
+    parent_agent_id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/).max(100).optional(),
     /** Who emitted the event, e.g. "claude-code-hook", "transcript-import", "sdk". */
     source: z.string().max(60).optional(),
   })

@@ -16,6 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusDot, STATUS_LABEL } from "@/components/status";
 import { CreateManifestButton } from "@/components/actions";
+import { ChatPanel } from "@/components/chat-panel";
+import { chatAvailability, isChatRunning } from "@/lib/chat/runner";
+import { closeOrphanedReplies, listMessages } from "@/lib/chat/store";
 
 export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
@@ -34,6 +37,9 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const finished = runs.filter((r) => r.durationMs != null);
   const avgDur = finished.length ? finished.reduce((s, r) => s + (r.durationMs ?? 0), 0) / finished.length : null;
   const totalCost = runs.reduce((s, r) => s + r.costUsd, 0);
+  const chat = chatAvailability(m);
+  if (!isChatRunning(id)) closeOrphanedReplies(db, id);
+  const chatMessages = listMessages(db, id);
   let yaml = "";
   if (m) {
     try {
@@ -68,7 +74,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         }
       />
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Kpi label="Status" value={STATUS_LABEL[card.status]} tone={card.status === "failed" ? "failed" : card.status === "warning" ? "warning" : card.status === "running" ? "running" : undefined} />
         <Kpi label="Last run" value={timeAgo(card.lastRun?.startedAt, now)} hint={card.lastRun ? dateTime(card.lastRun.startedAt) : undefined} />
         <Kpi label="Next run" value={card.nextRunAt ? timeAgo(card.nextRunAt, now) : "—"} hint={m?.schedule ? <code className="font-mono">{m.schedule}{m.timezone ? ` (${m.timezone})` : ""}</code> : "on demand"} />
@@ -80,40 +86,50 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
       {alerts.length > 0 && (
         <div className="mt-4 space-y-2">
           {alerts.map((a) => (
-            <Link key={a.id} href="/alerts" className="flex items-center gap-2 rounded-card border border-status-failed/35 bg-status-failed/8 px-4 py-2.5 text-[13px] hover:bg-status-failed/12">
+            <Link key={a.id} href="/alerts" className="flex items-center gap-2 rounded-card border border-status-failed/35 bg-status-failed/8 px-4 py-2.5 text-sm hover:bg-status-failed/12">
               <Badge variant={a.severity === "critical" ? "failed" : "warning"}>{a.severity}</Badge>
               <span className="text-fg">{a.message}</span>
-              <span className="ml-auto text-[12px] text-fg-subtle">{a.status} · {timeAgo(a.triggeredAt, now)}</span>
+              <span className="ml-auto text-xs text-fg-subtle">{a.status} · {timeAgo(a.triggeredAt, now)}</span>
             </Link>
           ))}
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-8">
         <AgentCharts data={daily} />
       </div>
 
-      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Run history</CardTitle>
-            <span className="text-[12px] text-fg-subtle">latest {runs.length}</span>
+            <span className="text-xs text-fg-subtle">latest {runs.length}</span>
           </CardHeader>
           {runs.length ? <RunsTable runs={runs} now={now} /> : <div className="p-4"><EmptyState title="No runs yet">Runs appear as soon as this agent sends its first event.</EmptyState></div>}
         </Card>
 
         <div className="min-w-0 space-y-6">
+          <ChatPanel
+            key={id}
+            agentId={id}
+            agentName={card.name}
+            enabled={chat.enabled}
+            disabledReason={chat.enabled ? undefined : chat.reason}
+            permissionMode={chat.enabled ? chat.permissionMode : undefined}
+            projectDir={chat.enabled ? chat.projectDir : undefined}
+            initialMessages={chatMessages}
+          />
           {m && (
             <Card>
               <CardHeader>
                 <CardTitle>Alert rules</CardTitle>
-                <span className="text-[12px] text-fg-subtle">{m.alert_rules.length}</span>
+                <span className="text-xs text-fg-subtle">{m.alert_rules.length}</span>
               </CardHeader>
               <CardContent className="space-y-2">
-                {m.alert_rules.length === 0 && <div className="text-[13px] text-fg-subtle">No alert rules. Add some under <code className="font-mono">alert_rules</code>.</div>}
+                {m.alert_rules.length === 0 && <div className="text-sm text-fg-subtle">No alert rules. Add some under <code className="font-mono">alert_rules</code>.</div>}
                 {m.alert_rules.map((r) => (
-                  <div key={ruleKey(r)} className="flex items-center justify-between gap-2 text-[13px]">
-                    <code className="truncate font-mono text-[12px] text-fg">{ruleKey(r)}</code>
+                  <div key={ruleKey(r)} className="flex items-center justify-between gap-2 text-sm">
+                    <code className="truncate font-mono text-xs text-fg">{ruleKey(r)}</code>
                     <Badge variant={r.severity === "critical" ? "failed" : "warning"}>{r.severity}</Badge>
                   </div>
                 ))}
@@ -124,11 +140,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             <Card>
               <CardHeader>
                 <CardTitle>Manifest</CardTitle>
-                <code className="font-mono text-[11px] text-fg-subtle">agents/{m.id}.yaml</code>
+                <code className="font-mono text-2xs text-fg-subtle">agents/{m.id}.yaml</code>
               </CardHeader>
-              <pre className="max-h-80 overflow-auto p-4 font-mono text-[12px] leading-relaxed text-fg-muted">{yaml}</pre>
+              <pre className="max-h-80 overflow-auto p-4 font-mono text-xs leading-relaxed text-fg-muted">{yaml}</pre>
               {m.schedule && (
-                <div className="border-t border-border px-4 py-2 text-[12px] text-fg-subtle">
+                <div className="border-t border-border px-4 py-2 text-xs text-fg-subtle">
                   Next fire: {dateTime(nextScheduledRun(m, new Date(now))?.getTime())}
                 </div>
               )}

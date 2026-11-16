@@ -73,7 +73,8 @@ export function ingestEvents(db: DB, input: unknown, now = Date.now()): IngestRe
   const updateRun = sqlite.prepare(
     `UPDATE runs SET status=@status, title=@title, started_at=@started_at, ended_at=@ended_at, last_event_at=@last_event_at,
        duration_ms=@duration_ms, tokens_in=@tokens_in, tokens_out=@tokens_out, cost_usd=@cost_usd,
-       event_count=@event_count, tool_count=@tool_count, error_count=@error_count, session_id=COALESCE(session_id, @session_id)
+       event_count=@event_count, tool_count=@tool_count, error_count=@error_count, session_id=COALESCE(session_id, @session_id),
+       parent_run_id=COALESCE(parent_run_id, @parent_run_id), parent_agent_id=COALESCE(parent_agent_id, @parent_agent_id)
      WHERE id=@id`,
   );
 
@@ -120,7 +121,17 @@ export function ingestEvents(db: DB, input: unknown, now = Date.now()): IngestRe
         return;
       }
 
-      const next = { ...run, session_id: e.session_id ?? null };
+      // Agent-to-agent handoff: remember which run triggered this one (first writer wins).
+      let parentAgent = e.parent_agent_id ?? null;
+      if (e.parent_run_id && !parentAgent) {
+        parentAgent = (getRun.get(e.parent_run_id) as RunRow | undefined)?.agent_id ?? null;
+      }
+      const next = {
+        ...run,
+        session_id: e.session_id ?? null,
+        parent_run_id: e.parent_run_id && e.parent_run_id !== e.run_id ? e.parent_run_id : null,
+        parent_agent_id: e.parent_run_id && e.parent_run_id !== e.run_id ? parentAgent : null,
+      };
       next.event_count += 1;
       next.started_at = Math.min(run.started_at, ts);
       next.last_event_at = Math.max(run.last_event_at, ts);

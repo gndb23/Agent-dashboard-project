@@ -24,6 +24,7 @@ timezone: Asia/Singapore
 tags: [demo, finance, scheduled]
 expected_runtime_minutes: 12
 color: "#6E56CF"
+triggers: [inbox-triage, pr-reviewer]
 alert_rules:
   - type: consecutive_failures
     threshold: 2
@@ -109,8 +110,14 @@ const PROMPTS: Record<string, string[]> = {
 };
 const ERRORS = ["Rate limited by upstream API (429)", "Timeout fetching https://www.ft.com/markets", "OAuth token expired", "Tool returned non-zero exit code"];
 
-function buildRun(agent: string, runId: string, start: number, opts: { fail?: boolean; running?: boolean; minutes: number; cost: number }): AgentEventInput[] {
-  const base = { schema_version: 1 as const, agent_id: agent, run_id: runId, session_id: runId, source: "seed" };
+function buildRun(
+  agent: string, runId: string, start: number,
+  opts: { fail?: boolean; running?: boolean; minutes: number; cost: number; parent?: { runId: string; agentId: string } },
+): AgentEventInput[] {
+  const base = {
+    schema_version: 1 as const, agent_id: agent, run_id: runId, session_id: runId, source: "seed",
+    ...(opts.parent ? { parent_run_id: opts.parent.runId, parent_agent_id: opts.parent.agentId } : {}),
+  };
   const ev: AgentEventInput[] = [];
   let t = start;
   let n = 0;
@@ -160,9 +167,16 @@ function generate(now: number): AgentEventInput[] {
       const start = day.getTime() + hourUtc * 3_600_000 + between(0, 90_000);
       if (start > now) continue;
       const fail = (d === 9 && hourUtc > 20) || (d === 4 && hourUtc < 20);
-      all.push(...buildRun("portfolio-research", `pr-${Math.round(start)}`, start, {
-        fail, minutes: between(8, 16), cost: d === 2 && hourUtc < 20 ? 3.4 : between(0.6, 1.9),
-      }));
+      const minutes = between(8, 16);
+      const id = `pr-${Math.round(start)}`;
+      all.push(...buildRun("portfolio-research", id, start, { fail, minutes, cost: d === 2 && hourUtc < 20 ? 3.4 : between(0.6, 1.9) }));
+      // Each successful briefing hands off to inbox triage (declared link, also observed) …
+      const handoff = start + (minutes + 1) * 60_000;
+      if (!fail && handoff < now - 600_000) {
+        all.push(...buildRun("inbox-triage", `tri-brief-${Math.round(start)}`, handoff, {
+          minutes: between(0.8, 2), cost: between(0.02, 0.06), parent: { runId: id, agentId: "portfolio-research" },
+        }));
+      }
     }
   }
   // PR reviewer: on demand, a few per weekday; one currently running
@@ -171,7 +185,16 @@ function generate(now: number): AgentEventInput[] {
     for (let i = 0; i < count; i++) {
       const start = now - d * DAY - between(1, 10) * 3_600_000;
       if (start > now - 600_000) continue;
-      all.push(...buildRun("pr-reviewer", `rev-${Math.round(start)}`, start, { fail: rand() < 0.1, minutes: between(3, 11), cost: between(0.2, 0.9) }));
+      const id = `rev-${Math.round(start)}`;
+      const fail = rand() < 0.1;
+      const minutes = between(3, 11);
+      all.push(...buildRun("pr-reviewer", id, start, { fail, minutes, cost: between(0.2, 0.9) }));
+      // … and some reviews spin off an experiment (observed only: not declared in any manifest)
+      if (!fail && d <= 5 && i === 0) {
+        all.push(...buildRun("scratch-experiments", `scr-rev-${Math.round(start)}`, start + (minutes + 0.5) * 60_000, {
+          minutes: between(2, 4), cost: between(0.1, 0.2), parent: { runId: id, agentId: "pr-reviewer" },
+        }));
+      }
     }
   }
   all.push(...buildRun("pr-reviewer", `rev-live-${Math.floor(now / 60_000)}`, now - 4 * 60_000, { running: true, minutes: 6, cost: 0.4 }));

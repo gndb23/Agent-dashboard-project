@@ -19,6 +19,8 @@ Every agent reports by POSTing JSON to `POST /api/events`. The body is **one eve
 | `metrics` | object | no | `tokens_in`, `tokens_out`, `cost_usd`, `duration_ms` (plus any extra numeric keys). |
 | `metrics_cumulative` | boolean | no | `false` (default): metrics are **deltas** and are summed into the run. `true`: metrics are **run-to-date totals** and are max-merged. |
 | `event_id` | string | no | Client id for idempotency. Re-sending the same `event_id` is a no-op (counted as `duplicates`). |
+| `parent_run_id` | string | no | The run that triggered this one (an agent-to-agent handoff). Shown on the Workflow page and on both run pages. The first value sent for a run wins. |
+| `parent_agent_id` | string | no | The agent that owns `parent_run_id`. Optional when the dashboard already knows the parent run. |
 | `source` | string | no | Emitter, e.g. `claude-code-hook`, `transcript-import`, `my-sdk`. |
 
 Unknown extra top-level fields are accepted and ignored.
@@ -62,3 +64,4 @@ Unknown extra top-level fields are accepted and ignored.
 | `POST /api/manifests` `{ "agent_id": "x" }` | Create a starter manifest for an unregistered agent. |
 | `PATCH /api/alerts/:id` `{ "status": "acknowledged" \| "resolved" }` | Update an alert. |
 | `GET /api/health` | Liveness check. |
+| `GET/POST/DELETE /api/agents/:id/chat` | Chat history, send a message (reply streams back as NDJSON), stop a reply. Localhost and same-origin only. |

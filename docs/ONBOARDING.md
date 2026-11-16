@@ -17,6 +17,10 @@ timezone: Asia/Singapore         # optional IANA timezone for the schedule
 tags: [ops]
 expected_runtime_minutes: 5      # optional, shown for context
 color: "#6E56CF"                 # optional
+triggers: [warehouse-report]     # optional: agents this one hands work to (Workflow page)
+project_dir: /Users/me/code/nightly-sync   # optional: enables Chat (claude-code agents only)
+chat:
+  permission_mode: default       # default (read-only answers) | plan | acceptEdits
 alert_rules:
   - type: consecutive_failures   # N failed runs in a row
     threshold: 2
@@ -62,6 +66,31 @@ A complete dependency-free Python helper is on the /onboarding page. Always wrap
 ## 3. Verify
 
 Run the agent once. It shows up live on the Overview. If it shows as **Unregistered**, the `agent_id` in the events doesn't match any manifest. Click **Create manifest** to generate one, then edit it.
+
+## Linking agents (Workflow page)
+
+The **Workflow** page draws which agent hands work to which. Links come from two places:
+
+- **Declared:** list downstream agents under `triggers:` in the manifest. An unknown id is reported as a manifest issue; the agent still loads.
+- **Detected:** when one agent launches another, the child reports its parent. Claude Code agents: set `AGENT_OPS_PARENT_RUN_ID` (the parent's session id) and `AGENT_OPS_PARENT_AGENT_ID` in the child's environment and the hook forwards them. Other agents: add `parent_run_id` and `parent_agent_id` to any event of the child run.
+
+A solid accent line means declared and seen happening, a grey line means declared but not seen yet, and a dashed line means seen but not declared.
+
+## Chatting with an agent
+
+Each agent page has a chat panel. Sending a message runs `claude -p` in the agent's `project_dir` on this computer and streams the reply back; follow-up messages resume the same Claude Code session. **New** starts a fresh one.
+
+Requirements: `type: claude-code`, a `project_dir` in the manifest, and the Claude Code CLI installed (set `AGENT_OPS_CLAUDE_BIN` if it isn't on the PATH).
+
+What the agent may do is set by `chat.permission_mode`:
+
+| Mode | Behaviour |
+|---|---|
+| `default` | Can read files and answer. Edits and shell commands are denied, because nobody is there to approve them. |
+| `plan` | Can explore and propose a plan, changes nothing. |
+| `acceptEdits` | Can edit files inside the project folder. |
+
+Chat only works when the dashboard is opened through `localhost`, and requests from other websites or other machines are refused, because it runs commands on your computer. If the hooks from step 2 are installed in that project, each chat also shows up as a normal run.
 
 ## Removing an agent
 

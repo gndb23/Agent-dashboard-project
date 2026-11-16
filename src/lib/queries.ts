@@ -15,6 +15,7 @@ type RunRow = {
   id: string; agent_id: string; session_id: string | null; status: RunStatus; title: string | null;
   started_at: number; ended_at: number | null; last_event_at: number; duration_ms: number | null;
   tokens_in: number; tokens_out: number; cost_usd: number; event_count: number; tool_count: number; error_count: number;
+  parent_run_id: string | null; parent_agent_id: string | null;
 };
 
 function toRun(r: RunRow, now: number): RunView {
@@ -28,7 +29,8 @@ function toRun(r: RunRow, now: number): RunView {
     id: r.id, agentId: r.agent_id, sessionId: r.session_id, status: r.status, title: r.title,
     startedAt: r.started_at, endedAt: r.ended_at, lastEventAt: r.last_event_at, durationMs: r.duration_ms,
     tokensIn: r.tokens_in, tokensOut: r.tokens_out, costUsd: r.cost_usd, eventCount: r.event_count,
-    toolCount: r.tool_count, errorCount: r.error_count, displayStatus, stalled,
+    toolCount: r.tool_count, errorCount: r.error_count,
+    parentRunId: r.parent_run_id ?? null, parentAgentId: r.parent_agent_id ?? null, displayStatus, stalled,
   };
 }
 
@@ -259,6 +261,11 @@ export type TimelineEvent = {
   summary: string;
 };
 
+/** Runs that were triggered by the given run (agent-to-agent handoffs). */
+export function getChildRuns(db: DB, runId: string, now = Date.now()): RunView[] {
+  return (db.$client.prepare(`SELECT * FROM runs WHERE parent_run_id = ? ORDER BY started_at ASC LIMIT 50`).all(runId) as RunRow[]).map((r) => toRun(r, now));
+}
+
 export function getRun(db: DB, runId: string, now = Date.now()): { run: RunView; events: TimelineEvent[] } | null {
   const row = db.$client.prepare(`SELECT * FROM runs WHERE id = ?`).get(runId) as RunRow | undefined;
   if (!row) return null;
@@ -310,4 +317,41 @@ export function alertCounts(db: DB): { open: number; acknowledged: number } {
     .prepare(`SELECT SUM(status='open') open, SUM(status='acknowledged') ack FROM alerts`)
     .get() as { open: number | null; ack: number | null };
   return { open: r.open ?? 0, acknowledged: r.ack ?? 0 };
+}
+
+// ---------------------------------------------------------------- workflow graph
+
+export type WorkflowEdge = {
+  from: string;
+  to: string;
+  /** declared = in a manifest's `triggers`; detected = seen in parent_run_id events; both = declared and observed. */
+  kind: "declared" | "detected" | "both";
+  handoffs7d: number;
+  handoffsTotal: number;
+  lastHandoffAt: number | null;
+};
+
+export function getWorkflowEdges(db: DB, registry: Registry, now = Date.now()): WorkflowEdge[] {
+  const edges = new Map<string, WorkflowEdge>();
+  for (const a of registry.agents) {
+    for (const t of a.triggers) {
+      if (t === a.id || !registry.byId.has(t)) continue;
+      edges.set(`${a.id}\u0000${t}`, { from: a.id, to: t, kind: "declared", handoffs7d: 0, handoffsTotal: 0, lastHandoffAt: null });
+    }
+  }
+  const rows = db.$client
+    .prepare(
+      `SELECT parent_agent_id src, agent_id dst, COUNT(*) total, SUM(started_at >= ?) c7, MAX(started_at) last
+       FROM runs WHERE parent_agent_id IS NOT NULL AND parent_agent_id != agent_id GROUP BY 1, 2`,
+    )
+    .all(now - 7 * DAY) as { src: string; dst: string; total: number; c7: number | null; last: number }[];
+  for (const r of rows) {
+    const key = `${r.src}\u0000${r.dst}`;
+    const existing = edges.get(key);
+    edges.set(key, {
+      from: r.src, to: r.dst, kind: existing ? "both" : "detected",
+      handoffs7d: r.c7 ?? 0, handoffsTotal: r.total, lastHandoffAt: r.last,
+    });
+  }
+  return [...edges.values()].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 }

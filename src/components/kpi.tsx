@@ -1,21 +1,27 @@
 import { cn } from "@/lib/utils";
 
-export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: "failed" | "warning" | "running" | "success" }) {
+type Tone = "failed" | "warning" | "running" | "success";
+const VALUE: Record<Tone, string> = {
+  failed: "text-status-failed-fg",
+  warning: "text-status-warning-fg",
+  running: "text-status-running-fg",
+  success: "text-fg",
+};
+const RAIL: Record<Tone, string> = {
+  failed: "bg-status-failed",
+  warning: "bg-status-warning",
+  running: "bg-status-running",
+  success: "bg-status-success",
+};
+
+/** Headline stat tile. `tone` colors the value and adds a thin status rail. */
+export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: Tone }) {
   return (
-    <div className="rounded-card border border-border bg-surface px-4 py-3 shadow-card">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">{label}</div>
-      <div
-        className={cn(
-          "mt-1.5 text-2xl font-semibold tracking-tight tabular text-fg",
-          tone === "failed" && "text-status-failed",
-          tone === "warning" && "text-status-warning",
-          tone === "running" && "text-status-running",
-          tone === "success" && "text-status-success",
-        )}
-      >
-        {value}
-      </div>
-      {hint && <div className="mt-0.5 text-[12px] text-fg-subtle">{hint}</div>}
+    <div className="relative overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-card">
+      {tone && <span className={cn("absolute inset-y-0 left-0 w-[3px]", RAIL[tone])} aria-hidden />}
+      <div className="eyebrow">{label}</div>
+      <div className={cn("tabular mt-2 text-2xl font-semibold tracking-[-0.02em] text-fg", tone && VALUE[tone])}>{value}</div>
+      {hint && <div className="mt-1 truncate text-xs text-fg-subtle">{hint}</div>}
     </div>
   );
 }

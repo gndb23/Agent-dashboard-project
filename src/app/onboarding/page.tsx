@@ -15,14 +15,14 @@ import { StatusDot } from "@/components/status";
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <section className="relative min-w-0 pl-11">
-      <span className="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full border border-border-strong bg-surface text-[12px] font-semibold text-fg tabular">{n}</span>
-      <h2 className="pt-1 text-[15px] font-semibold tracking-tight">{title}</h2>
-      <div className="mt-2 space-y-3 text-[13px] leading-relaxed text-fg-muted">{children}</div>
+      <span className="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full border border-border-strong bg-surface text-xs font-semibold text-fg tabular">{n}</span>
+      <h2 className="pt-1 text-lg font-semibold tracking-tight">{title}</h2>
+      <div className="mt-2 space-y-3 text-sm leading-relaxed text-fg-muted">{children}</div>
     </section>
   );
 }
 
-const code = (s: string) => <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[12px] text-fg">{s}</code>;
+const code = (s: string) => <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-xs text-fg">{s}</code>;
 
 export default function OnboardingPage() {
   const now = Date.now();
@@ -75,6 +75,10 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
               Alert rule types: {code("consecutive_failures")} {code("failures_in_window")} {code("runtime_exceeds")} {code("no_run_within")} {code("cost_per_run_exceeds")}.
               Full reference in {code("docs/ONBOARDING.md")}.
             </p>
+            <p>
+              Two optional extras: {code("triggers: [other-agent]")} draws a link on the <Link href="/workflow" className="text-accent hover:underline">Workflow</Link> page,
+              and {code("project_dir: /absolute/path")} turns on the chat box for a Claude Code agent.
+            </p>
           </Step>
 
           <Step n={2} title="Claude Code agents: add the hooks">
@@ -87,7 +91,7 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
               To pin a specific agent id, run {code("npm run hook-config -- my-new-agent")} and paste its output instead.
               To backfill past sessions, run {code("npm run import:transcripts")}.
             </p>
-            <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px]">
+            <p className="rounded-control border border-border bg-surface-2 px-3 py-2 text-xs">
               <strong className="text-fg">Cloud sessions</strong> (claude.ai/code) run in a remote container and can&apos;t reach {code("localhost")}. Expose the dashboard with a tunnel
               and set {code("AGENT_OPS_URL")}, or host the dashboard. See the README.
             </p>
@@ -114,17 +118,17 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
           <Card>
             <CardHeader>
               <CardTitle>Listening for events</CardTitle>
-              <span className="flex items-center gap-1.5 text-[12px] text-fg-subtle">
+              <span className="flex items-center gap-1.5 text-xs text-fg-subtle">
                 <span className="h-1.5 w-1.5 rounded-full bg-status-running animate-pulse-dot" /> live
               </span>
             </CardHeader>
             <ul className="divide-y divide-border">
-              {recent.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-fg-subtle">Waiting for the first event…</li>}
+              {recent.length === 0 && <li className="px-4 py-6 text-center text-sm text-fg-subtle">Waiting for the first event…</li>}
               {recent.map((c) => (
-                <li key={c.id} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
+                <li key={c.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
                   <StatusDot status={c.status} />
                   <Link href={`/agents/${encodeURIComponent(c.id)}`} className="truncate text-fg hover:text-accent">{c.name}</Link>
-                  <span className="ml-auto shrink-0 text-[12px] text-fg-subtle tabular">{timeAgo(c.lastRun?.lastEventAt, now)}</span>
+                  <span className="ml-auto shrink-0 text-xs text-fg-subtle tabular">{timeAgo(c.lastRun?.lastEventAt, now)}</span>
                 </li>
               ))}
             </ul>
@@ -139,7 +143,7 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
               <CardContent className="space-y-3">
                 {unregistered.map((c) => (
                   <div key={c.id} className="flex flex-wrap items-center justify-between gap-2">
-                    <code className="font-mono text-[12px] text-fg">{c.id}</code>
+                    <code className="font-mono text-xs text-fg">{c.id}</code>
                     <CreateManifestButton agentId={c.id} type={c.lastSource === "claude-code-hook" ? "claude-code" : "other"} />
                   </div>
                 ))}
@@ -150,13 +154,13 @@ report("run_completed", status="success", metrics={"tokens_in": 1200, "tokens_ou
           {registry.errors.length > 0 && (
             <Card className="border-status-warning/40">
               <CardHeader>
-                <CardTitle className="text-status-warning">Manifest errors</CardTitle>
+                <CardTitle className="text-status-warning-fg">Manifest errors</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {registry.errors.map((e) => (
                   <div key={e.file}>
-                    <code className="font-mono text-[12px] text-fg">agents/{e.file}</code>
-                    <pre className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-fg-muted">{e.error}</pre>
+                    <code className="font-mono text-xs text-fg">agents/{e.file}</code>
+                    <pre className="mt-1 whitespace-pre-wrap font-mono text-2xs text-fg-muted">{e.error}</pre>
                   </div>
                 ))}
               </CardContent>
