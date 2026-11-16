@@ -193,7 +193,7 @@ export function ChatPanel({
                     m.status === "error" ? "border-status-failed/35 bg-status-failed/8 text-status-failed-fg" : "border-border bg-surface-2 text-fg",
                   )}
                 >
-                  {m.text.trim()}
+                  {m.text.trim().replace(/\n{3,}/g, "\n\n")}
                   {m.status === "streaming" && (
                     <span className="ml-0.5 inline-flex translate-y-[1px] gap-[3px] align-baseline" aria-label="Agent is replying">
                       {[0, 1, 2].map((i) => (
