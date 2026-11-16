@@ -1,0 +1,15 @@
+# DEMO agent — remove with: npm run seed -- --remove
+id: pr-reviewer
+name: PR Reviewer
+description: Reviews pull requests on demand and leaves inline comments.
+owner: me
+type: claude-code
+tags: [demo, code]
+expected_runtime_minutes: 8
+color: "#0EA5E9"
+alert_rules:
+  - type: failures_in_window
+    threshold: 3
+    hours: 24
+  - type: runtime_exceeds
+    minutes: 25

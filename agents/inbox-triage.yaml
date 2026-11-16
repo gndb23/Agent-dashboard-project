@@ -1,0 +1,17 @@
+# DEMO agent — remove with: npm run seed -- --remove
+id: inbox-triage
+name: Inbox Triage
+description: Labels and drafts replies for new email every 30 minutes on weekdays.
+owner: me
+type: api-script
+schedule: "*/30 8-20 * * 1-5"
+timezone: Asia/Singapore
+tags: [demo, email, scheduled]
+expected_runtime_minutes: 2
+color: "#F59E0B"
+alert_rules:
+  - type: consecutive_failures
+    threshold: 2
+    severity: critical
+  - type: no_run_within
+    hours: 3

@@ -1,0 +1,19 @@
+# DEMO agent — remove with: npm run seed -- --remove
+id: portfolio-research
+name: Portfolio Research
+description: Twice-daily market scan and portfolio briefing.
+owner: me
+type: claude-code
+schedule: "37 7,18 * * *"
+timezone: Asia/Singapore
+tags: [demo, finance, scheduled]
+expected_runtime_minutes: 12
+color: "#6E56CF"
+alert_rules:
+  - type: consecutive_failures
+    threshold: 2
+  - type: no_run_within
+    hours: 13
+    severity: critical
+  - type: cost_per_run_exceeds
+    usd: 3

@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — the ONLY place colors, radii, fonts and shadows are defined.
+ * Components reference them via Tailwind utilities (bg-surface, text-fg-muted,
+ * text-status-failed, …). To restyle the app, edit this file.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* light theme */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-hover: #eef0f4;
+  --border: #e3e6ec;
+  --border-strong: #cfd4de;
+  --fg: #0f1219;
+  --fg-muted: #535c6e;
+  --fg-subtle: #8a92a3;
+  --accent: #5b4be0;
+  --accent-fg: #ffffff;
+  --ring: #5b4be0;
+
+  --status-success: #16a34a;
+  --status-running: #2563eb;
+  --status-warning: #d97706;
+  --status-failed: #dc2626;
+  --status-idle: #8a92a3;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --radius: 10px;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0a0c10;
+  --surface: #101319;
+  --surface-2: #161a22;
+  --surface-hover: #1a1f29;
+  --border: #222734;
+  --border-strong: #2f3646;
+  --fg: #e6e8ee;
+  --fg-muted: #9aa3b5;
+  --fg-subtle: #677086;
+  --accent: #8b7cf6;
+  --accent-fg: #0a0c10;
+  --ring: #8b7cf6;
+
+  --status-success: #22c55e;
+  --status-running: #3b82f6;
+  --status-warning: #f5a524;
+  --status-failed: #f05252;
+  --status-idle: #677086;
+
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ring: var(--ring);
+  --color-status-success: var(--status-success);
+  --color-status-running: var(--status-running);
+  --color-status-warning: var(--status-warning);
+  --color-status-failed: var(--status-failed);
+  --color-status-idle: var(--status-idle);
+
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow-card);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-running) 55%, transparent); }
+    50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-running) 0%, transparent); }
+  }
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    border-color: var(--border);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

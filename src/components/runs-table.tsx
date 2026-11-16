@@ -1,0 +1,44 @@
+import Link from "next/link";
+import type { RunView } from "@/lib/queries";
+import { compact, dateTime, duration, timeAgo, usd } from "@/lib/format";
+import { Table, TBody, TD, TH, THead, TR } from "./ui/table";
+import { RunStatusBadge } from "./status";
+
+export function RunsTable({ runs, now }: { runs: RunView[]; now: number }) {
+  return (
+    <Table>
+      <THead>
+        <tr>
+          <TH>Status</TH>
+          <TH>Run</TH>
+          <TH>Started</TH>
+          <TH className="text-right">Duration</TH>
+          <TH className="text-right">Tools</TH>
+          <TH className="text-right">Errors</TH>
+          <TH className="text-right">Tokens</TH>
+          <TH className="text-right">Cost</TH>
+        </tr>
+      </THead>
+      <TBody>
+        {runs.map((r) => (
+          <TR key={r.id}>
+            <TD>
+              <RunStatusBadge status={r.status} stalled={r.stalled} />
+            </TD>
+            <TD className="max-w-[340px]">
+              <Link href={`/runs/${encodeURIComponent(r.id)}`} className="block truncate text-fg hover:text-accent">
+                {r.title ?? <span className="font-mono text-[12px]">{r.id}</span>}
+              </Link>
+            </TD>
+            <TD className="whitespace-nowrap tabular" title={dateTime(r.startedAt)}>{timeAgo(r.startedAt, now)}</TD>
+            <TD className="text-right tabular">{duration(r.durationMs ?? (r.status === "running" ? now - r.startedAt : null))}</TD>
+            <TD className="text-right tabular">{r.toolCount}</TD>
+            <TD className={"text-right tabular" + (r.errorCount ? " text-status-failed" : "")}>{r.errorCount}</TD>
+            <TD className="text-right tabular">{compact(r.tokensIn + r.tokensOut)}</TD>
+            <TD className="text-right tabular">{usd(r.costUsd)}</TD>
+          </TR>
+        ))}
+      </TBody>
+    </Table>
+  );
+}

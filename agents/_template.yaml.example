@@ -1,0 +1,16 @@
+# Copy to agents/<your-agent-id>.yaml — the file name must match `id`.
+id: my-agent
+name: My Agent
+description: What this agent does, in one line.
+owner: me
+type: claude-code            # claude-code | api-script | other
+# schedule: "0 9 * * 1-5"    # optional cron
+# timezone: Asia/Singapore
+tags: []
+# expected_runtime_minutes: 10
+alert_rules:
+  - type: consecutive_failures
+    threshold: 2
+  # - type: no_run_within
+  #   hours: 25
+  #   severity: critical

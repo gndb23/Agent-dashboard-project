@@ -1,0 +1,89 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getDb } from "@/lib/db/client";
+import { getRun, type TimelineEvent } from "@/lib/queries";
+import { getRegistry } from "@/lib/registry/registry";
+import { clockTime, compact, dateTime, duration, usd } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
+import { Kpi } from "@/components/kpi";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { RunStatusBadge } from "@/components/status";
+import { cn } from "@/lib/utils";
+
+function tone(e: TimelineEvent) {
+  if (e.eventType === "error" || e.status === "error" || e.status === "failed") return "failed";
+  if (e.eventType === "run_started") return "running";
+  if (e.eventType === "run_completed") return "success";
+  return "idle";
+}
+const DOT = { failed: "bg-status-failed", running: "bg-status-running", success: "bg-status-success", idle: "bg-border-strong" } as const;
+const LABEL: Record<string, string> = {
+  run_started: "started", tool_called: "tool", tool_result: "result", message: "message", error: "error", run_completed: "completed", heartbeat: "heartbeat",
+};
+
+export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const now = Date.now();
+  const data = getRun(getDb(), decodeURIComponent(id), now);
+  if (!data) notFound();
+  const { run, events } = data;
+  const agent = getRegistry().byId.get(run.agentId);
+  const t0 = run.startedAt;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={
+          <span>
+            <Link href="/" className="hover:text-fg">Overview</Link> /{" "}
+            <Link href={`/agents/${encodeURIComponent(run.agentId)}`} className="hover:text-fg">{agent?.name ?? run.agentId}</Link>
+          </span>
+        }
+        title={run.title ?? "Run"}
+        description={<span className="font-mono text-[12px]">{run.id}</span>}
+        actions={<RunStatusBadge status={run.status} stalled={run.stalled} />}
+      />
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <Kpi label="Started" value={clockTime(run.startedAt)} hint={dateTime(run.startedAt)} />
+        <Kpi label="Duration" value={duration(run.durationMs ?? now - run.startedAt)} hint={run.status === "running" ? "still running" : run.endedAt ? `ended ${clockTime(run.endedAt)}` : undefined} />
+        <Kpi label="Events" value={run.eventCount} hint={`${run.toolCount} tool calls`} />
+        <Kpi label="Errors" value={run.errorCount} tone={run.errorCount ? "failed" : undefined} />
+        <Kpi label="Tokens" value={compact(run.tokensIn + run.tokensOut)} hint={`${compact(run.tokensIn)} in · ${compact(run.tokensOut)} out`} />
+        <Kpi label="Est. cost" value={usd(run.costUsd)} />
+      </section>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Timeline</CardTitle>
+          <span className="text-[12px] text-fg-subtle">{events.length} events · click to expand</span>
+        </CardHeader>
+        <ol className="relative py-2">
+          {events.map((e) => {
+            const t = tone(e);
+            return (
+              <li key={e.id} className="relative pl-12 pr-4">
+                <span className="absolute left-[23px] top-0 h-full w-px bg-border" aria-hidden />
+                <span className={cn("absolute left-[19px] top-[13px] h-[9px] w-[9px] rounded-full ring-4 ring-surface", DOT[t])} aria-hidden />
+                <details className="group rounded-md">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-hover">
+                    <span className="w-16 shrink-0 font-mono text-[11px] text-fg-subtle tabular">+{duration(e.timestamp - t0)}</span>
+                    <Badge variant={t === "failed" ? "failed" : t === "success" ? "success" : t === "running" ? "running" : "neutral"} className="w-[72px] justify-center">
+                      {LABEL[e.eventType] ?? e.eventType}
+                    </Badge>
+                    <span className={cn("min-w-0 flex-1 truncate text-[13px]", t === "failed" ? "text-status-failed" : "text-fg")}>{e.summary}</span>
+                    <span className="hidden shrink-0 font-mono text-[11px] text-fg-subtle sm:inline">{clockTime(e.timestamp)}</span>
+                  </summary>
+                  <pre className="mb-2 ml-2 mt-1 max-h-96 overflow-auto rounded-md border border-border bg-surface-2 p-3 font-mono text-[11.5px] leading-relaxed text-fg-muted">
+                    {JSON.stringify({ event_type: e.eventType, status: e.status, timestamp: new Date(e.timestamp).toISOString(), payload: e.payload, metrics: e.metrics }, null, 2)}
+                  </pre>
+                </details>
+              </li>
+            );
+          })}
+        </ol>
+      </Card>
+    </>
+  );
+}
