@@ -60,3 +60,33 @@ export function AgentCharts({ data }: { data: DailyPoint[] }) {
     </div>
   );
 }
+
+export function UsageChart({ data }: { data: { day: string; cost: number; runs: number; failed: number }[] }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Frame title="Est. cost per day (USD)">
+        <ResponsiveContainer>
+          <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="day" {...axis} interval="preserveStartEnd" />
+            <YAxis {...axis} />
+            <Tooltip {...tooltipStyle} formatter={(v) => `$${Number(v).toFixed(2)}`} />
+            <Bar dataKey="cost" name="Cost" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Frame>
+      <Frame title="Runs per day">
+        <ResponsiveContainer>
+          <BarChart data={data.map((d) => ({ ...d, ok: d.runs - d.failed }))} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="day" {...axis} interval="preserveStartEnd" />
+            <YAxis allowDecimals={false} {...axis} />
+            <Tooltip {...tooltipStyle} />
+            <Bar dataKey="ok" stackId="a" fill="var(--status-success)" name="Completed" stroke="var(--surface)" strokeWidth={1} />
+            <Bar dataKey="failed" stackId="a" fill="var(--status-failed)" name="Failed" radius={[4, 4, 0, 0]} stroke="var(--surface)" strokeWidth={1} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Frame>
+    </div>
+  );
+}

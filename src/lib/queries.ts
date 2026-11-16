@@ -355,3 +355,58 @@ export function getWorkflowEdges(db: DB, registry: Registry, now = Date.now()): 
   }
   return [...edges.values()].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 }
+
+// ---------------------------------------------------------------- runs explorer
+
+export type RunFilter = { agentId?: string; status?: string; sinceMs?: number; q?: string; limit?: number; offset?: number };
+
+export function searchRuns(db: DB, f: RunFilter, now = Date.now()): { runs: RunView[]; total: number } {
+  const where: string[] = [];
+  const args: unknown[] = [];
+  if (f.agentId) (where.push("agent_id = ?"), args.push(f.agentId));
+  if (f.status === "stalled") (where.push("status = 'running' AND last_event_at < ?"), args.push(now - ACTIVE_WINDOW_MS));
+  else if (f.status) (where.push("status = ?"), args.push(f.status));
+  if (f.sinceMs) (where.push("started_at >= ?"), args.push(f.sinceMs));
+  if (f.q) (where.push("(title LIKE ? OR id LIKE ? OR agent_id LIKE ?)"), args.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`));
+  const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const total = (db.$client.prepare(`SELECT COUNT(*) c FROM runs ${w}`).get(...args) as { c: number }).c;
+  const rows = db.$client.prepare(`SELECT * FROM runs ${w} ORDER BY started_at DESC LIMIT ? OFFSET ?`).all(...args, f.limit ?? 50, f.offset ?? 0) as RunRow[];
+  return { runs: rows.map((r) => toRun(r, now)), total };
+}
+
+// ---------------------------------------------------------------- usage
+
+export type UsageRow = { agentId: string; runs: number; failed: number; cost: number; tokensIn: number; tokensOut: number; avgDurationMs: number | null };
+
+export function usageByAgent(db: DB, sinceMs: number): UsageRow[] {
+  return (db.$client
+    .prepare(
+      `SELECT agent_id agentId, COUNT(*) runs, SUM(status='failed') failed, COALESCE(SUM(cost_usd),0) cost,
+              COALESCE(SUM(tokens_in),0) tokensIn, COALESCE(SUM(tokens_out),0) tokensOut, AVG(duration_ms) avgDurationMs
+       FROM runs WHERE started_at >= ? GROUP BY agent_id ORDER BY cost DESC, runs DESC`,
+    )
+    .all(sinceMs) as UsageRow[]).map((r) => ({ ...r, failed: r.failed ?? 0 }));
+}
+
+export function usageDaily(db: DB, days: number, now = Date.now()): { day: string; ts: number; cost: number; runs: number; failed: number; tokens: number }[] {
+  const start = startOfToday(now) - (days - 1) * DAY;
+  const rows = db.$client.prepare(`SELECT started_at, cost_usd, status, tokens_in + tokens_out t FROM runs WHERE started_at >= ?`).all(start) as { started_at: number; cost_usd: number; status: string; t: number }[];
+  const out = Array.from({ length: days }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return { day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), ts: d.getTime(), cost: 0, runs: 0, failed: 0, tokens: 0 };
+  });
+  for (const r of rows) {
+    const idx = out.findLastIndex((p) => p.ts <= r.started_at);
+    if (idx < 0) continue;
+    out[idx].cost += r.cost_usd;
+    out[idx].runs++;
+    if (r.status === "failed") out[idx].failed++;
+    out[idx].tokens += r.t;
+  }
+  return out.map((p) => ({ ...p, cost: Math.round(p.cost * 100) / 100 }));
+}
+
+export function topRuns(db: DB, sinceMs: number, limit = 10, now = Date.now()): RunView[] {
+  return (db.$client.prepare(`SELECT * FROM runs WHERE started_at >= ? AND cost_usd > 0 ORDER BY cost_usd DESC LIMIT ?`).all(sinceMs, limit) as RunRow[]).map((r) => toRun(r, now));
+}

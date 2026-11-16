@@ -17,6 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { StatusDot, STATUS_LABEL } from "@/components/status";
 import { CreateManifestButton } from "@/components/actions";
 import { ChatPanel } from "@/components/chat-panel";
+import { RunAgentButton } from "@/components/agent-actions";
+import { AskAboutButton } from "@/components/assistant";
+import { CalendarCheck, FolderOpen, Settings2 } from "lucide-react";
 import { chatAvailability, isChatRunning } from "@/lib/chat/runner";
 import { closeOrphanedReplies, listMessages } from "@/lib/chat/store";
 
@@ -52,7 +55,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader
-        eyebrow={<Link href="/" className="hover:text-fg">Overview</Link>}
+        eyebrow={<Link href="/agents" className="hover:text-fg">Agents</Link>}
         title={
           <span className="flex items-center gap-2.5">
             <StatusDot status={card.status} className="h-2.5 w-2.5" />
@@ -62,17 +65,39 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         description={m?.description || (m ? id : "This agent is sending events but has no manifest yet.")}
         actions={
           m ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge>{m.type}</Badge>
-              {m.tags.map((t) => (
-                <Badge key={t} variant="outline">{t}</Badge>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <AskAboutButton question={`How is the agent "${card.name}" (${id}) doing? Summarise its recent runs, any failures and their causes, and its cost.`} />
+              <Link href={`/agents/${encodeURIComponent(id)}/settings`} className="inline-flex h-7 items-center gap-1.5 rounded-control border border-border-strong bg-surface px-2.5 text-xs font-medium text-fg hover:bg-surface-hover">
+                <Settings2 size={13} /> Settings
+              </Link>
+              {m.type === "claude-code" && <RunAgentButton agentId={id} />}
             </div>
           ) : (
             <CreateManifestButton agentId={id} />
           )
         }
       />
+
+      {m && (
+        <div className="-mt-4 mb-6 flex flex-wrap items-center gap-1.5">
+          {m.origin ? (
+            <Badge variant="accent" title={m.origin.skillFile}>
+              <CalendarCheck size={11} /> Claude scheduled task{m.origin.enabled === false ? " · paused in Claude" : ""}
+            </Badge>
+          ) : (
+            <Badge>{m.type}</Badge>
+          )}
+          {m.origin?.model && <Badge variant="outline">model: {m.origin.model}</Badge>}
+          {m.tags.filter((t) => t !== "claude-task").map((t) => (
+            <Badge key={t} variant="outline">{t}</Badge>
+          ))}
+          {(m.project_dir ?? m.origin?.taskDir) && (
+            <span className="ml-1 inline-flex items-center gap-1 truncate font-mono text-2xs text-fg-subtle" title="Working folder">
+              <FolderOpen size={11} /> {m.project_dir ?? m.origin?.taskDir}
+            </span>
+          )}
+        </div>
+      )}
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Kpi label="Status" value={STATUS_LABEL[card.status]} tone={card.status === "failed" ? "failed" : card.status === "warning" ? "warning" : card.status === "running" ? "running" : undefined} />
@@ -117,6 +142,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             disabledReason={chat.enabled ? undefined : chat.reason}
             permissionMode={chat.enabled ? chat.permissionMode : undefined}
             projectDir={chat.enabled ? chat.projectDir : undefined}
+            readableDirs={chat.enabled ? chat.addDirs : []}
             initialMessages={chatMessages}
           />
           {m && (
@@ -136,7 +162,17 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </CardContent>
             </Card>
           )}
-          {m && (
+          {m && !yaml && m.origin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Instructions</CardTitle>
+                <Link href={`/agents/${encodeURIComponent(id)}/settings#instructions`} className="text-xs text-accent hover:underline">Edit</Link>
+              </CardHeader>
+              <pre className="max-h-80 overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-fg-muted">{m.origin.instructions || "(empty)"}</pre>
+              <div className="border-t border-border px-4 py-2 text-xs text-fg-subtle">From {m.origin.skillFile}</div>
+            </Card>
+          )}
+          {m && yaml && (
             <Card>
               <CardHeader>
                 <CardTitle>Manifest</CardTitle>

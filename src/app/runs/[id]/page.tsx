@@ -11,6 +11,9 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RunStatusBadge } from "@/components/status";
 import { cn } from "@/lib/utils";
+import { AskAboutButton } from "@/components/assistant";
+import { RunAgentButton } from "@/components/agent-actions";
+import { Markdown } from "@/components/markdown";
 
 function tone(e: TimelineEvent) {
   if (e.eventType === "error" || e.status === "error" || e.status === "failed") return "failed";
@@ -40,13 +43,22 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       <PageHeader
         eyebrow={
           <span>
-            <Link href="/" className="hover:text-fg">Overview</Link> /{" "}
+            <Link href="/runs" className="hover:text-fg">Runs</Link> /{" "}
             <Link href={`/agents/${encodeURIComponent(run.agentId)}`} className="hover:text-fg">{agent?.name ?? run.agentId}</Link>
           </span>
         }
         title={run.title ?? "Run"}
         description={<span className="font-mono text-xs">{run.id}</span>}
-        actions={<RunStatusBadge status={run.status} stalled={run.stalled} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <RunStatusBadge status={run.status} stalled={run.stalled} />
+            <AskAboutButton
+              question={`Look at run ${run.id} of the agent "${agent?.name ?? run.agentId}". What did it do${run.status === "failed" || run.errorCount ? ", what went wrong, and how do I fix it" : ""}?`}
+              label={run.status === "failed" || run.errorCount ? "Why did this fail?" : "Explain this run"}
+            />
+            {agent?.type === "claude-code" && <RunAgentButton agentId={run.agentId} compact />}
+          </div>
+        }
       />
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -57,6 +69,20 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         <Kpi label="Tokens" value={compact(run.tokensIn + run.tokensOut)} hint={`${compact(run.tokensIn)} in · ${compact(run.tokensOut)} out`} />
         <Kpi label="Est. cost" value={usd(run.costUsd)} />
       </section>
+
+      {(() => {
+        const done = [...events].reverse().find((e) => e.eventType === "run_completed" && typeof e.payload?.summary === "string" && (e.payload.summary as string).trim());
+        return done ? (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>What it reported</CardTitle>
+            </CardHeader>
+            <div className="max-h-96 overflow-y-auto px-5 py-4">
+              <Markdown text={String(done.payload!.summary)} />
+            </div>
+          </Card>
+        ) : null;
+      })()}
 
       {(run.parentRunId || children.length > 0) && (
         <div className="mt-4 flex flex-wrap gap-2 text-sm">

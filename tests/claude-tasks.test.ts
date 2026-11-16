@@ -103,6 +103,19 @@ describe("merge into the registry", () => {
     expect(nameMatch("PR Reviewer", "Portfolio research agent")).toBe(0);
   });
 
+  it("breaks ties: an id that starts the task name wins, then the closer full name", () => {
+    const dir = path.join(t, "agents2");
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, "portfolio-research.yaml"), "id: portfolio-research\nname: Portfolio Research\n");
+    fs.writeFileSync(path.join(dir, "portfolio-research-agent.yaml"), "id: portfolio-research-agent\nname: Portfolio Research Agent\n");
+    const task = { taskName: "portfolio-research-agent-twice-daily", title: "Portfolio Research Agent Twice Daily", description: "", instructions: "x", taskDir: "/t", skillFile: "/t/SKILL.md", updatedAt: 0 };
+    const reg = mergeTasks(loadRegistry(dir), [task], "UTC");
+    expect(reg.byId.get("portfolio-research-agent")!.origin?.taskName).toBe("portfolio-research-agent-twice-daily");
+    expect(reg.byId.get("portfolio-research")!.origin).toBeUndefined();
+    const reg2 = mergeTasks(loadRegistry(dir), [{ ...task, taskName: "research-portfolio-agent-x" }], "UTC");
+    expect(reg2.byId.get("portfolio-research-agent")!.origin?.taskName).toBe("research-portfolio-agent-x"); // closer full name
+  });
+
   it("links existing manifests and creates agents for the rest, with real schedules and folders", () => {
     const { work } = fixture();
     const dir = path.join(t, "agents");

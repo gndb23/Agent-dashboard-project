@@ -39,14 +39,27 @@ export function mergeTasks(base: Registry, tasks: DiscoveredTask[], localTz: str
   const linkTo = (t: DiscoveredTask): AgentManifest | undefined => {
     const explicit = agents.find((a) => a.scheduled_task && slugifyTaskName(a.scheduled_task) === slugifyTaskName(t.taskName));
     if (explicit) return explicit;
-    const sameId = byId.get(slugifyTaskName(t.taskName));
+    const slug = slugifyTaskName(t.taskName);
+    const sameId = byId.get(slug);
     if (sameId && !sameId.scheduled_task) return sameId;
-    const candidates = agents
-      .filter((a) => !a.scheduled_task && !linked.has(a.id))
-      .map((a) => ({ a, score: Math.max(nameMatch(a.name, t.title), nameMatch(a.name, t.taskName)) }))
+    const free = agents.filter((a) => !a.scheduled_task && !linked.has(a.id));
+    // "portfolio-research-agent" is the start of "portfolio-research-agent-twice-daily": the longest such id wins.
+    const prefixed = free.filter((a) => slug.startsWith(`${a.id}-`)).sort((x, y) => y.id.length - x.id.length);
+    if (prefixed.length) return prefixed[0];
+    const raw = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1));
+    const rawScore = (a: string, b: string) => {
+      const A = raw(a);
+      const B = raw(b);
+      let n = 0;
+      for (const w of A) if (B.has(w)) n++;
+      return n / Math.max(A.size, B.size, 1);
+    };
+    const candidates = free
+      .map((a) => ({ a, score: Math.max(nameMatch(a.name, t.title), nameMatch(a.name, t.taskName)), tie: Math.max(rawScore(a.name, t.title), rawScore(a.name, t.taskName)) }))
       .filter((x) => x.score >= 0.8)
-      .sort((x, y) => y.score - x.score);
-    if (candidates.length === 1 || (candidates.length > 1 && candidates[0].score > candidates[1].score)) return candidates[0].a;
+      .sort((x, y) => y.score - x.score || y.tie - x.tie);
+    if (candidates.length === 1) return candidates[0].a;
+    if (candidates.length > 1 && (candidates[0].score > candidates[1].score || candidates[0].tie > candidates[1].tie)) return candidates[0].a;
     return undefined;
   };
 

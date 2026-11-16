@@ -35,8 +35,19 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
       es.onopen = () => setState((s) => ({ ...s, connected: true }));
       es.onmessage = (m) => {
         try {
-          const msg = JSON.parse(m.data) as { kind: string };
+          const msg = JSON.parse(m.data) as { kind: string; agentId?: string; status?: string };
           if (msg.kind === "ping" || msg.kind === "hello") return;
+          // Optional desktop notification for new alerts (turned on in Settings, per browser).
+          if (msg.kind === "alert" && msg.status === "opened") {
+            try {
+              if (localStorage.getItem("agent-ops-notify") === "1" && "Notification" in window && Notification.permission === "granted") {
+                const n = new Notification("Agent Ops: new alert", { body: `${msg.agentId ?? "An agent"} needs attention`, icon: "/icon.svg", tag: `alert-${msg.agentId}` });
+                n.onclick = () => (window.focus(), (window.location.href = "/alerts"));
+              }
+            } catch {
+              /* notifications unavailable */
+            }
+          }
           setState({ connected: true, lastEventAt: Date.now() });
           refresh();
         } catch {

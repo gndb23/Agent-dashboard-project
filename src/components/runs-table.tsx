@@ -4,12 +4,13 @@ import { compact, dateTime, duration, timeAgo, usd } from "@/lib/format";
 import { Table, TBody, TD, TH, THead, TR } from "./ui/table";
 import { RunStatusBadge } from "./status";
 
-export function RunsTable({ runs, now }: { runs: RunView[]; now: number }) {
+export function RunsTable({ runs, now, agentNames }: { runs: RunView[]; now: number; agentNames?: Map<string, string> }) {
   return (
     <Table>
       <THead>
         <tr>
           <TH>Status</TH>
+          {agentNames && <TH>Agent</TH>}
           <TH>Run</TH>
           <TH>Started</TH>
           <TH className="text-right">Duration</TH>
@@ -25,6 +26,11 @@ export function RunsTable({ runs, now }: { runs: RunView[]; now: number }) {
             <TD>
               <RunStatusBadge status={r.status} stalled={r.stalled} />
             </TD>
+            {agentNames && (
+              <TD className="whitespace-nowrap">
+                <Link href={`/agents/${encodeURIComponent(r.agentId)}`} className="text-fg hover:text-accent">{agentNames.get(r.agentId) ?? r.agentId}</Link>
+              </TD>
+            )}
             <TD className="max-w-[340px]">
               <Link href={`/runs/${encodeURIComponent(r.id)}`} className="block truncate text-fg hover:text-accent">
                 {r.title ?? <span className="font-mono text-xs">{r.id}</span>}

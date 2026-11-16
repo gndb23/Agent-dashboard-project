@@ -3,13 +3,16 @@ import { AlertTriangle } from "lucide-react";
 import { getDb } from "@/lib/db/client";
 import { getRegistry } from "@/lib/registry/registry";
 import { getActivity, getAgentCards, getKpis } from "@/lib/queries";
-import { compact, pct, usd } from "@/lib/format";
+import { compact, pct, timeAgo, usd } from "@/lib/format";
+import { StatusDot } from "@/components/status";
+import { CreateManifestButton } from "@/components/actions";
 import { Kpi } from "@/components/kpi";
 import { AgentCard } from "@/components/agent-card";
 import { ActivityFeed } from "@/components/activity-feed";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { AskAboutButton } from "@/components/assistant";
 
 export default function OverviewPage() {
   const db = getDb();
@@ -25,9 +28,12 @@ export default function OverviewPage() {
         title="Overview"
         description={`${registry.agents.length} registered agent${registry.agents.length === 1 ? "" : "s"} · live`}
         actions={
-          <Link href="/onboarding" className={buttonVariants({ variant: "secondary" })}>
-            Add an agent
-          </Link>
+          <div className="flex items-center gap-2">
+            <AskAboutButton question="Give me a quick status report: what ran since yesterday, anything that failed or is late, and anything I should do." label="What's happening?" />
+            <Link href="/agents/new" className={buttonVariants({ variant: "primary" })}>
+              New agent
+            </Link>
+          </div>
         }
       />
 
@@ -63,16 +69,41 @@ export default function OverviewPage() {
       <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,1fr)_384px]">
         <section className="min-w-0">
           <SectionTitle aside="each bar is a run · height shows duration">Agents</SectionTitle>
-          {cards.length === 0 ? (
-            <EmptyState title="No agents yet">
-              Add a manifest to <code className="font-mono">agents/</code> or{" "}
-              <Link href="/onboarding" className="text-accent hover:underline">follow the onboarding guide</Link>.
+          {cards.filter((c) => c.manifest).length === 0 ? (
+            <EmptyState title="Let's add your first agent">
+              Scheduled tasks you create in the Claude app appear here automatically. Or{" "}
+              <Link href="/agents/new" className="text-accent hover:underline">create an agent here</Link>, or press <kbd className="rounded border border-border px-1 text-xs">Ctrl K</kbd> and describe one.
             </EmptyState>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-              {cards.map((c) => (
-                <AgentCard key={c.id} card={c} now={now} />
-              ))}
+              {cards
+                .filter((c) => c.manifest)
+                .map((c) => (
+                  <AgentCard key={c.id} card={c} now={now} />
+                ))}
+            </div>
+          )}
+          {cards.some((c) => !c.manifest) && (
+            <div className="mt-8">
+              <SectionTitle aside="Claude Code sessions in folders that aren't set up as agents">Other activity</SectionTitle>
+              <div className="overflow-hidden rounded-card border border-dashed border-border-strong bg-surface/60">
+                <ul className="divide-y divide-border">
+                  {cards
+                    .filter((c) => !c.manifest)
+                    .map((c) => (
+                      <li key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                        <StatusDot status={c.status} />
+                        <Link href={`/agents/${encodeURIComponent(c.id)}`} className="min-w-0 flex-1 truncate text-sm text-fg hover:text-accent">
+                          {c.name}
+                        </Link>
+                        <span className="tabular text-xs text-fg-subtle">
+                          {c.runs24h} run{c.runs24h === 1 ? "" : "s"} today · last {timeAgo(c.lastRun?.startedAt, now)}
+                        </span>
+                        <CreateManifestButton agentId={c.id} type={c.lastSource === "claude-code-hook" || c.lastSource === "transcript-import" ? "claude-code" : "other"} />
+                      </li>
+                    ))}
+                </ul>
+              </div>
             </div>
           )}
         </section>
