@@ -114,7 +114,12 @@ function hash(file) {
 async function ensureInstalled(force = false) {
   const marker = path.join(ROOT, "node_modules", ".agent-ops-lock");
   const lock = hash(path.join(ROOT, "package-lock.json"));
-  const installed = fs.existsSync(path.join(ROOT, "node_modules", "next")) && fs.existsSync(marker) && fs.readFileSync(marker, "utf8") === lock;
+  const hasModules = fs.existsSync(path.join(ROOT, "node_modules", "next"));
+  // A working install made outside the supervisor (install.ps1, npm install): adopt it instead of reinstalling.
+  if (hasModules && !fs.existsSync(marker) && fs.statSync(path.join(ROOT, "node_modules", "next")).mtimeMs >= fs.statSync(path.join(ROOT, "package-lock.json")).mtimeMs - 1000) {
+    fs.writeFileSync(marker, lock);
+  }
+  const installed = hasModules && fs.existsSync(marker) && fs.readFileSync(marker, "utf8") === lock;
   if (force || !installed) {
     await npm(["install", "--no-audit", "--no-fund"], "Installing dependencies (first time takes a few minutes)");
     fs.writeFileSync(marker, lock);

@@ -118,7 +118,7 @@ function npmShimScript(shimDir: string): string | null {
  * On Windows, `.cmd`/`.bat` shims can't be spawned without a shell (unsafe with arbitrary arguments),
  * so the npm shim is resolved to `node cli.js` instead.
  */
-export function resolveClaude(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): ClaudeCommand | null {
+export function resolveClaude(env: Record<string, string | undefined> = process.env, platform: NodeJS.Platform = process.platform): ClaudeCommand | null {
   const override = env.AGENT_OPS_CLAUDE_BIN;
   const win = platform === "win32";
   const fromFile = (file: string, source: string): ClaudeCommand | null => {
