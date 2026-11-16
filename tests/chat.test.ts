@@ -75,6 +75,13 @@ describe("runChatTurn (fake CLI)", () => {
     expect(noBin.chunks[0]).toMatchObject({ type: "error", message: expect.stringContaining("not found") });
   });
 
+  it("shows a logged-out error once, not twice", async () => {
+    const r = await turn("NOLOGIN");
+    expect(r.status).toBe("error");
+    expect(r.text.match(/Not logged in/g)).toHaveLength(1);
+    expect(r.chunks.filter((c) => c.type === "error")).toHaveLength(0);
+  });
+
   it("allows one chat per agent at a time and can be stopped", async () => {
     const chunks: ChatChunk[] = [];
     const slow = runChatTurn({ agentId: "busy", projectDir: os.tmpdir(), permissionMode: "default", message: "SLOW", onChunk: (c) => chunks.push(c) });

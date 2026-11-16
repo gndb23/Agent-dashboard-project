@@ -12,6 +12,12 @@ if (input.includes("FAIL")) {
   process.exit(2);
 }
 out({ type: "system", subtype: "init", session_id: sessionId });
+if (input.includes("NOLOGIN")) {
+  // What the real CLI does when logged out: the message arrives as an assistant reply AND as the error result.
+  out({ type: "assistant", message: { content: [{ type: "text", text: "Not logged in · Please run /login" }] } });
+  out({ type: "result", subtype: "success", is_error: true, result: "Not logged in · Please run /login", session_id: sessionId });
+  process.exit(1);
+}
 if (input.includes("SLOW")) await new Promise((r) => setTimeout(r, 30_000));
 out({ type: "stream_event", event: { type: "message_start" } });
 for (const t of ["You said: ", input, ` (cwd=${process.cwd()}, agent=${process.env.AGENT_ID}, mode=${args[args.indexOf("--permission-mode") + 1]}, resumed=${resume ?? "no"})`]) {

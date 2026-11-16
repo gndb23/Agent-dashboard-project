@@ -144,6 +144,7 @@ export function runChatTurn(opts: {
     let sawResult = false;
     let resultError = false;
     let sawText = false;
+    let allText = "";
     let settled = false;
     const finish = (status: "done" | "error" | "stopped") => {
       if (settled) return;
@@ -154,12 +155,17 @@ export function runChatTurn(opts: {
     };
     const handle = (line: string) => {
       for (const c of parseStreamLine(line, state)) {
-        if (c.type === "text") sawText = true;
+        if (c.type === "text") {
+          sawText = true;
+          allText += c.text;
+        }
         if (c.type === "result") {
           sawResult = true;
           resultError = c.isError;
-          // Some failures only carry their explanation in the result text.
-          if (c.text && (!sawText || c.isError)) opts.onChunk(c.isError ? { type: "error", message: c.text } : { type: "text", text: c.text });
+          // Some failures only carry their explanation in the result text. Skip it when the
+          // same message was already streamed as the reply (e.g. "Not logged in"), so it isn't shown twice.
+          if (c.text && c.isError && !allText.includes(c.text.trim())) opts.onChunk({ type: "error", message: c.text });
+          else if (c.text && !c.isError && !sawText) opts.onChunk({ type: "text", text: c.text });
         }
         opts.onChunk(c);
       }
