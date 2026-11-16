@@ -1,0 +1,12 @@
+id: inventory-sync
+name: Daily Inventory Sync
+description: Everflow Supplies inventory sync, Shopify vs stock list. Replaces the old n8n workflow.
+type: other
+schedule: "0 8 * * *"
+timezone: Asia/Singapore
+tags: [scheduled, ecommerce, project-octopus]
+expected_runtime_minutes: 15
+# alert_rules:
+#   - type: no_run_within
+#     hours: 26
+#     severity: critical

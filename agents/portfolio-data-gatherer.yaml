@@ -1,0 +1,14 @@
+id: portfolio-data-gatherer
+name: Portfolio Data Gatherer
+description: Daily data gathering (Sonnet) for the portfolio, runs before the research agent.
+type: claude-code
+schedule: "0 5 * * *"
+timezone: Asia/Singapore
+tags: [scheduled, finance]
+expected_runtime_minutes: 20
+triggers: [portfolio-research-agent]   # its output feeds the research agent at 05:30
+# Uncomment once this task reports its runs to the dashboard, otherwise it alerts constantly:
+# alert_rules:
+#   - type: no_run_within
+#     hours: 26
+#     severity: critical

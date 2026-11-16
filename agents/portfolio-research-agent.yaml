@@ -1,0 +1,12 @@
+id: portfolio-research-agent
+name: Portfolio Research Agent
+description: Daily portfolio research reviewer and analyst (Opus), runs after the data gatherer.
+type: other
+schedule: "30 5 * * *"
+timezone: Asia/Singapore
+tags: [scheduled, finance]
+expected_runtime_minutes: 25
+# alert_rules:
+#   - type: no_run_within
+#     hours: 26
+#     severity: critical
