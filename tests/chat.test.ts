@@ -25,7 +25,7 @@ describe("parseStreamLine", () => {
     expect(parseStreamLine('{"type":"system","subtype":"init","session_id":"s1"}', st)).toEqual([{ type: "session", sessionId: "s1" }]);
     expect(parseStreamLine('{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}}', st)).toEqual([{ type: "text", text: "Hi" }]);
     const a = parseStreamLine('{"type":"assistant","message":{"content":[{"type":"text","text":"Hi"},{"type":"tool_use","name":"Bash","input":{"command":"ls -la"}}]}}', st);
-    expect(a).toEqual([{ type: "tool", name: "Bash", summary: "ls -la" }]); // text skipped: already streamed
+    expect(a).toEqual([expect.objectContaining({ type: "tool", name: "Bash", summary: "ls -la" })]); // text skipped: already streamed
     const r = parseStreamLine('{"type":"result","subtype":"error_max_turns","session_id":"s1","total_cost_usd":0.5}', st);
     expect(r[0]).toMatchObject({ type: "result", isError: true, costUsd: 0.5 });
   });
@@ -49,7 +49,7 @@ describe("runChatTurn (fake CLI)", () => {
     expect(r.text).toContain("mode=default");
     expect(r.text).toContain("resumed=no");
     expect(r.chunks).toContainEqual({ type: "session", sessionId: "sess-fake-1" });
-    expect(r.chunks).toContainEqual({ type: "tool", name: "Read", summary: "README.md" });
+    expect(r.chunks).toContainEqual(expect.objectContaining({ type: "tool", name: "Read", summary: "README.md" }));
     expect(r.chunks.at(-1)).toEqual({ type: "done", status: "done" });
     expect(isChatRunning("a1")).toBe(false);
   });
@@ -66,7 +66,7 @@ describe("runChatTurn (fake CLI)", () => {
     expect(failed.chunks).toContainEqual({ type: "error", message: "fake: something broke" });
 
     const noDir = await turn("hi", { projectDir: "/definitely/not/here" });
-    expect(noDir.chunks[0]).toMatchObject({ type: "error", message: expect.stringContaining("project_dir does not exist") });
+    expect(noDir.chunks[0]).toMatchObject({ type: "error", message: expect.stringContaining("Working folder does not exist") });
 
     process.env.AGENT_OPS_CLAUDE_BIN = "/no/such/claude-binary";
     const noBin = await turn("hi");
@@ -88,7 +88,7 @@ describe("runChatTurn (fake CLI)", () => {
     await new Promise((r) => setTimeout(r, 400));
     expect(isChatRunning("busy")).toBe(true);
     const second = await turn("hi", { agentId: "busy" });
-    expect(second.chunks[0]).toMatchObject({ type: "error", message: expect.stringContaining("already answering") });
+    expect(second.chunks[0]).toMatchObject({ type: "error", message: expect.stringContaining("already busy") });
     expect(stopChat("busy")).toBe(true);
     expect(await slow).toBe("stopped");
     expect(isChatRunning("busy")).toBe(false);
@@ -107,7 +107,8 @@ describe("chat availability + store + guard", () => {
     expect(chatAvailability(null).enabled).toBe(false);
     expect(chatAvailability(m("type: api-script\nproject_dir: /tmp")).enabled).toBe(false);
     expect(chatAvailability(m("")).enabled).toBe(false);
-    expect(chatAvailability(m("project_dir: /tmp"))).toEqual({ enabled: true, projectDir: "/tmp", permissionMode: "default" });
+    expect(chatAvailability(m("project_dir: /tmp"))).toMatchObject({ enabled: true, projectDir: "/tmp", permissionMode: "default", addDirs: [] });
+    expect(chatAvailability(m("project_dir: /tmp\nextra_dirs: [/data/stock]"))).toMatchObject({ addDirs: ["/data/stock"] });
     expect(chatAvailability(m("project_dir: /tmp\nchat:\n  permission_mode: acceptEdits"))).toMatchObject({ permissionMode: "acceptEdits" });
     expect(parseManifest("id: a\nname: A\nproject_dir: relative/path").ok).toBe(false);
     expect(parseManifest("id: a\nname: A\nchat:\n  permission_mode: bypassPermissions").ok).toBe(false);

@@ -39,7 +39,8 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
   if (message.length > MAX_MESSAGE) return NextResponse.json({ error: `message is too long (max ${MAX_MESSAGE} characters)` }, { status: 400 });
 
-  const avail = chatAvailability(getRegistry().byId.get(id));
+  const manifest = getRegistry().byId.get(id);
+  const avail = chatAvailability(manifest);
   if (!avail.enabled) return NextResponse.json({ error: avail.reason }, { status: 409 });
   if (isChatRunning(id)) return NextResponse.json({ error: "This agent is already answering a message." }, { status: 409 });
 
@@ -78,6 +79,9 @@ export async function POST(req: Request, ctx: Ctx) {
         permissionMode: avail.permissionMode,
         message,
         resumeSessionId: current.sessionId,
+        agentName: manifest?.name ?? id,
+        instructions: avail.instructions,
+        addDirs: avail.addDirs,
         onChunk: (c) => {
           if (c.type === "text") text += c.text;
           else if (c.type === "tool") tools.push(c.summary ? `${c.name} · ${c.summary}` : c.name);

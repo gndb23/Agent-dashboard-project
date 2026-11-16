@@ -64,6 +64,23 @@ export const manifestSchema = z
       .object({ permission_mode: z.enum(["default", "acceptEdits", "plan"]).default("default") })
       .strict()
       .optional(),
+    /** More folders the agent may read in chat and runs (absolute paths). */
+    extra_dirs: z
+      .array(z.string().refine((p) => p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p), "extra_dirs entries must be absolute paths"))
+      .default([]),
+    /** Name of the Claude Desktop scheduled task this agent is (folder name under ~/.claude/scheduled-tasks). */
+    scheduled_task: z.string().optional(),
+    /** How "Run now" (and the optional built-in scheduler) runs this agent. */
+    run: z
+      .object({
+        prompt: z.string().optional(),
+        on_schedule: z.boolean().default(false),
+        permission_mode: z.enum(["default", "acceptEdits", "plan", "auto", "bypassPermissions"]).optional(),
+        max_minutes: z.number().positive().max(24 * 60).default(30),
+        model: z.string().optional(),
+      })
+      .strict()
+      .optional(),
     icon: z.string().optional(),
     color: z
       .string()
@@ -72,7 +89,25 @@ export const manifestSchema = z
   })
   .strict();
 
-export type AgentManifest = z.infer<typeof manifestSchema>;
+export type AgentManifest = z.infer<typeof manifestSchema> & {
+  /** Set for agents that come from (or are linked to) a Claude Desktop scheduled task. Not written to YAML. */
+  origin?: AgentOrigin;
+};
+
+export type AgentOrigin = {
+  kind: "claude-task";
+  taskName: string;
+  taskDir: string;
+  skillFile: string;
+  instructions: string;
+  /** From the Claude app's settings file, when found. */
+  enabled?: boolean;
+  model?: string;
+  permissionMode?: string;
+  cronSource?: "app" | "manifest" | "none";
+  /** True when no manifest file exists: the agent exists only because the task does. */
+  virtual: boolean;
+};
 
 function isValidCron(expr: string): boolean {
   try {
