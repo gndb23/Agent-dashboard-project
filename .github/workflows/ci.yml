@@ -26,8 +26,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --no-audit --no-fund
-      - name: Database driver loads
-        run: node -e "require('better-sqlite3')(':memory:').prepare('select 1').get(); console.log('sqlite ok')"
+      - name: Built-in database available
+        run: node -e "new (process.getBuiltinModule('node:sqlite').DatabaseSync)(':memory:').prepare('select 1').get(); console.log('node:sqlite ok')"
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests

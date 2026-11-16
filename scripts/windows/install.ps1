@@ -38,14 +38,15 @@ function Node-Version {
 # 1. Node.js -----------------------------------------------------------------
 Step "Checking Node.js"
 $v = Node-Version
-if (-not $v -or $v.Major -lt 20) {
+function Node-TooOld($v) { return (-not $v) -or ($v.Major -lt 22) -or ($v.Major -eq 22 -and $v.Minor -lt 13) }
+if (Node-TooOld $v) {
   if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "    Installing Node.js LTS with winget..."
     winget install --id OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements | Out-Host
     Refresh-Path
     $v = Node-Version
   }
-  if (-not $v -or $v.Major -lt 20) { throw "Node.js 20 or newer is required. Install the LTS version from https://nodejs.org and run this again." }
+  if (Node-TooOld $v) { throw "Node.js 22.13 or newer is required (it includes the database Agent Ops uses). Install the LTS version from https://nodejs.org and run this again." }
 }
 Ok "Node.js $v"
 $Node = (Get-Command node).Source
@@ -74,17 +75,7 @@ if (-not $NoUpdate -and (Test-Path (Join-Path $Root ".git")) -and (Get-Command g
 # 3. Dependencies + build ------------------------------------------------------
 Step "Installing dependencies (first time takes a few minutes)"
 Npm install --no-audit --no-fund
-& $Node -e "require('better-sqlite3')(':memory:').prepare('select 1').get()" 2>$null
-if ($LASTEXITCODE -ne 0) {
-  Warn "database driver not loaded; building it"
-  try { Npm install-scripts approve better-sqlite3 esbuild } catch {}
-  Npm rebuild better-sqlite3
-  & $Node -e "require('better-sqlite3')(':memory:').prepare('select 1').get()"
-  if ($LASTEXITCODE -ne 0) { throw "The database driver (better-sqlite3) still doesn't load. Install 'Visual Studio Build Tools' or use Node.js LTS, then run this again." }
-}
 Ok "dependencies ready"
-# Mark the install so the supervisor doesn't redo it
-$lock = Join-Path $Root "package-lock.json"
 Step "Building the dashboard"
 & $Node (Join-Path $Root "node_modules\next\dist\bin\next") build | Out-Host
 if ($LASTEXITCODE -ne 0) { throw "Build failed. See the output above." }

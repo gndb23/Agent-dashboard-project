@@ -36,7 +36,7 @@ If something isn't right, open **Settings → Health**. Each problem has a one-c
 npm install && npm run dev # http://localhost:4321
 ```
 
-Requirements: Node 20 or newer. Everything is local: SQLite (`data/agent-ops.db`), no external services.
+Requirements: Node.js 22.13 or newer (its built-in SQLite is the database, so nothing needs compiling). Everything is local: SQLite (`data/agent-ops.db`), no external services.
 </details>
 
 ## What you get

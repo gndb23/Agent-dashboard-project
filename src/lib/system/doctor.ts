@@ -65,13 +65,14 @@ export async function updateAvailable(root = process.cwd()): Promise<{ behind: n
 
 export async function runChecks(): Promise<Check[]> {
   const checks: Check[] = [];
-  const major = Number(process.versions.node.split(".")[0]);
-  checks.push({ id: "node", label: "Node.js", ok: major >= 20, detail: `v${process.versions.node}${major >= 20 ? "" : " (needs 20 or newer)"}` });
+  const [maj, min] = process.versions.node.split(".").map(Number);
+  const nodeOk = maj > 22 || (maj === 22 && min >= 13);
+  checks.push({ id: "node", label: "Node.js", ok: nodeOk, detail: `v${process.versions.node}${nodeOk ? "" : " (needs 22.13 or newer: install the LTS from nodejs.org)"}` });
 
   let dbOk = true;
-  let dbDetail = "Loaded";
+  let dbDetail = "Built-in SQLite (no install needed)";
   try {
-    const Database = (await import("better-sqlite3")).default;
+    const { Database } = await import("../db/sqlite");
     new Database(":memory:").prepare("select 1").get();
   } catch (e) {
     dbOk = false;

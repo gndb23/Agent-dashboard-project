@@ -97,9 +97,10 @@ function npm(args, label) {
   return run(process.platform === "win32" ? "npm.cmd" : "npm", args, label);
 }
 
-function sqliteWorks() {
-  const r = spawnSync(process.execPath, ["-e", "require('better-sqlite3')(':memory:').prepare('select 1').get()"], { cwd: ROOT, windowsHide: true });
-  return r.status === 0;
+/** Node's built-in SQLite (node:sqlite) is required: Node 22.13 or newer. Nothing to compile. */
+function nodeOk() {
+  const [maj, min] = process.versions.node.split(".").map(Number);
+  return maj > 22 || (maj === 22 && min >= 13);
 }
 
 function hash(file) {
@@ -124,15 +125,7 @@ async function ensureInstalled(force = false) {
     await npm(["install", "--no-audit", "--no-fund"], "Installing dependencies (first time takes a few minutes)");
     fs.writeFileSync(marker, lock);
   }
-  if (!sqliteWorks()) {
-    try {
-      await npm(["install-scripts", "approve", "better-sqlite3", "esbuild"], "Allowing the database driver to build");
-    } catch {
-      /* older npm: no such command, nothing to approve */
-    }
-    await npm(["rebuild", "better-sqlite3"], "Building the database driver");
-    if (!sqliteWorks()) throw new Error("The database driver (better-sqlite3) could not be loaded. See data/logs/setup.log");
-  }
+
 }
 
 function buildId() {
@@ -226,6 +219,7 @@ function startServer() {
 
 async function prepare({ update = false } = {}) {
   await serveStatus();
+  if (!nodeOk()) throw new Error(`Agent Ops needs Node.js 22.13 or newer (this computer has ${process.version}). Install the LTS version from https://nodejs.org, then reopen Agent Ops.`);
   setStatus({ state: update ? "updating" : "preparing", error: null });
   if (update) setStatus({ step: "Downloading the latest version", detail: gitPull() || "" });
   await ensureInstalled();

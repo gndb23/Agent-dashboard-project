@@ -1,4 +1,7 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+/**
+ * Database schema: plain SQL (applied idempotently on startup) plus matching TypeScript row types.
+ * Add new columns through COLUMN_MIGRATIONS; never edit existing columns.
+ */
 
 export const RUN_STATUSES = ["running", "success", "failed", "cancelled"] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
@@ -7,101 +10,69 @@ export const ALERT_STATUSES = ["open", "acknowledged", "resolved"] as const;
 export type AlertStatus = (typeof ALERT_STATUSES)[number];
 
 /** One execution of an agent. For Claude Code, one run == one session. */
-export const runs = sqliteTable(
-  "runs",
-  {
-    id: text("id").primaryKey(),
-    agentId: text("agent_id").notNull(),
-    sessionId: text("session_id"),
-    status: text("status", { enum: RUN_STATUSES }).notNull(),
-    title: text("title"),
-    startedAt: integer("started_at").notNull(),
-    endedAt: integer("ended_at"),
-    lastEventAt: integer("last_event_at").notNull(),
-    durationMs: integer("duration_ms"),
-    tokensIn: integer("tokens_in").notNull().default(0),
-    tokensOut: integer("tokens_out").notNull().default(0),
-    costUsd: real("cost_usd").notNull().default(0),
-    eventCount: integer("event_count").notNull().default(0),
-    toolCount: integer("tool_count").notNull().default(0),
-    errorCount: integer("error_count").notNull().default(0),
-    parentRunId: text("parent_run_id"),
-    parentAgentId: text("parent_agent_id"),
-  },
-  (t) => [
-    index("runs_agent_started_idx").on(t.agentId, t.startedAt),
-    index("runs_started_idx").on(t.startedAt),
-  ],
-);
+export type Run = {
+  id: string;
+  agentId: string;
+  sessionId: string | null;
+  status: RunStatus;
+  title: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  lastEventAt: number;
+  durationMs: number | null;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  eventCount: number;
+  toolCount: number;
+  errorCount: number;
+  parentRunId: string | null;
+  parentAgentId: string | null;
+};
 
-/** Raw event log, append-only. */
-export const events = sqliteTable(
-  "events",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    eventId: text("event_id"),
-    agentId: text("agent_id").notNull(),
-    runId: text("run_id").notNull(),
-    sessionId: text("session_id"),
-    eventType: text("event_type").notNull(),
-    timestamp: integer("timestamp").notNull(),
-    status: text("status"),
-    payload: text("payload", { mode: "json" }).$type<Record<string, unknown>>(),
-    metrics: text("metrics", { mode: "json" }).$type<Record<string, number>>(),
-    receivedAt: integer("received_at").notNull(),
-  },
-  (t) => [
-    uniqueIndex("events_event_id_uq").on(t.eventId),
-    index("events_run_ts_idx").on(t.runId, t.timestamp),
-    index("events_ts_idx").on(t.timestamp),
-  ],
-);
+/** Raw event log row (append-only). */
+export type EventRow = {
+  id: number;
+  eventId: string | null;
+  agentId: string;
+  runId: string;
+  sessionId: string | null;
+  eventType: string;
+  timestamp: number;
+  status: string | null;
+  payload: Record<string, unknown> | null;
+  metrics: Record<string, number> | null;
+  receivedAt: number;
+};
 
-export const alerts = sqliteTable(
-  "alerts",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    agentId: text("agent_id").notNull(),
-    ruleKey: text("rule_key").notNull(),
-    ruleType: text("rule_type").notNull(),
-    severity: text("severity", { enum: ["warning", "critical"] }).notNull(),
-    message: text("message").notNull(),
-    status: text("status", { enum: ALERT_STATUSES }).notNull(),
-    runId: text("run_id"),
-    triggeredAt: integer("triggered_at").notNull(),
-    acknowledgedAt: integer("acknowledged_at"),
-    resolvedAt: integer("resolved_at"),
-  },
-  (t) => [index("alerts_status_idx").on(t.status, t.triggeredAt), index("alerts_agent_idx").on(t.agentId, t.ruleKey)],
-);
+export type Alert = {
+  id: number;
+  agentId: string;
+  ruleKey: string;
+  ruleType: string;
+  severity: "warning" | "critical";
+  message: string;
+  status: AlertStatus;
+  runId: string | null;
+  triggeredAt: number;
+  acknowledgedAt: number | null;
+  resolvedAt: number | null;
+};
 
 /** Dashboard ↔ agent chat transcript (one row per message). */
-export const chatMessages = sqliteTable(
-  "chat_messages",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    agentId: text("agent_id").notNull(),
-    conversationId: text("conversation_id").notNull(),
-    role: text("role", { enum: ["user", "assistant"] }).notNull(),
-    text: text("text").notNull(),
-    tools: text("tools", { mode: "json" }).$type<string[]>(),
-    sessionId: text("session_id"),
-    status: text("status", { enum: ["done", "streaming", "error", "stopped"] }).notNull(),
-    costUsd: real("cost_usd"),
-    createdAt: integer("created_at").notNull(),
-  },
-  (t) => [index("chat_agent_idx").on(t.agentId, t.id)],
-);
+export type ChatMessage = {
+  id: number;
+  agentId: string;
+  conversationId: string;
+  role: "user" | "assistant";
+  text: string;
+  tools: string[] | null;
+  sessionId: string | null;
+  status: "done" | "streaming" | "error" | "stopped";
+  costUsd: number | null;
+  createdAt: number;
+};
 
-export type Run = typeof runs.$inferSelect;
-export type ChatMessage = typeof chatMessages.$inferSelect;
-export type EventRow = typeof events.$inferSelect;
-export type Alert = typeof alerts.$inferSelect;
-
-/**
- * DDL kept next to the Drizzle schema. Applied idempotently on startup —
- * add new columns with ALTER TABLE in MIGRATIONS below, never edit existing ones.
- */
 export const DDL = `
 CREATE TABLE IF NOT EXISTS runs (
   id TEXT PRIMARY KEY,
