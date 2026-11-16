@@ -48,6 +48,26 @@ export function transcriptCwd(text: string): string | undefined {
   return undefined;
 }
 
+/** The first real prompt typed (or sent) in a transcript, for matching it to a scheduled task. */
+export function transcriptFirstPrompt(text: string): string | undefined {
+  for (const raw of text.split("\n", 400)) {
+    if (!raw.includes('"user"')) continue;
+    try {
+      const l = JSON.parse(raw);
+      if (l.type !== "user" || !l.message) continue;
+      const c = l.message.content;
+      if (typeof c === "string" && c.trim()) return c.slice(0, 4000);
+      if (Array.isArray(c)) {
+        const t = c.find((b: { type?: string; text?: string }) => b?.type === "text" && typeof b.text === "string");
+        if (t) return String(t.text).slice(0, 4000);
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  return undefined;
+}
+
 /**
  * Converts one Claude Code transcript (JSONL text) into Agent Ops events.
  * Every event has a deterministic event_id, so re-importing is a no-op.

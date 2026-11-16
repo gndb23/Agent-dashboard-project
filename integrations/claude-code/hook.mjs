@@ -187,6 +187,8 @@ export function toEvent(h, env = process.env, lookup = findAgentFile) {
 }
 
 async function main() {
+  // Sessions started by the dashboard itself (Run now, chat, Ask) are recorded by the dashboard.
+  if (process.env.AGENT_OPS_SKIP_HOOK === "1") return;
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;
   const hook = JSON.parse(raw || "{}");

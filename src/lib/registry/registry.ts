@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseManifest, defaultManifestYaml, type AgentManifest } from "./manifest";
+import { discoverTasks } from "../claude-tasks/discover";
+import { mergeTasks } from "../claude-tasks/merge";
 
 export type ManifestError = { file: string; error: string };
 export type Registry = {
@@ -76,15 +78,19 @@ function signature(dir: string): string {
 
 const g = globalThis as unknown as { __agentOpsRegistry?: { sig: string; reg: Registry } };
 
+export const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
 /**
- * Cached registry that reloads automatically whenever a manifest is added,
- * edited or removed (checked via a cheap mtime signature on every call).
+ * Cached registry: manifests in agents/ plus the Claude Desktop scheduled tasks on this computer.
+ * Reloads automatically when a manifest or a task changes (cheap signature check on every call).
  */
 export function getRegistry(): Registry {
   const dir = agentsDir();
-  const sig = signature(dir);
+  const { tasks } = process.env.AGENT_OPS_NO_TASK_SYNC === "1" ? { tasks: [] } : discoverTasks();
+  const taskSig = tasks.map((t) => `${t.taskName}:${t.updatedAt}:${t.cron}:${t.cwd}:${t.enabled}`).join("|");
+  const sig = `${signature(dir)}#${taskSig}`;
   if (!g.__agentOpsRegistry || g.__agentOpsRegistry.sig !== sig || g.__agentOpsRegistry.reg.dir !== dir) {
-    g.__agentOpsRegistry = { sig, reg: loadRegistry(dir) };
+    g.__agentOpsRegistry = { sig, reg: mergeTasks(loadRegistry(dir), tasks, localTimeZone()) };
   }
   return g.__agentOpsRegistry.reg;
 }
@@ -97,4 +103,10 @@ export function createManifestFile(id: string, type: "claude-code" | "api-script
   if (fs.existsSync(file)) throw new Error(`${id}.yaml already exists`);
   fs.writeFileSync(file, defaultManifestYaml(id, type));
   return file;
+}
+
+/** Current registry signature (changes whenever a manifest or a Claude task changes). */
+export function registrySignature(): string {
+  getRegistry();
+  return g.__agentOpsRegistry?.sig ?? "";
 }
